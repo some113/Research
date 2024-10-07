@@ -56,8 +56,8 @@ public class SequenceDatabase {
                         int cnt = 1;
                         while (!patterns.isEmpty()) {
                             PatternTKS pattern = patterns.poll();
-                            // TODO: modify to get unique pattern, accumulate support from all file
                             if (!eventSet.contains(pattern) && patterns.size() < k) eventSet.add(pattern);
+                            if (eventSet. && )
                             if (patterns.size() < k) writer.write(pattern.getPrefix() + " #SUP: " + pattern.support + "\n");
                             cnt++;
                         }

@@ -191,10 +191,6 @@ public class P2PManagementFlowDetect {
 
             }
         }
-        System.out.println("Predict value ");
-        for (Map.Entry<String, Boolean> entry : predictValue.entrySet()) {
-            System.out.println(entry.getKey() + " " + entry.getValue());
-        }
     }
 
     void evaluate() {

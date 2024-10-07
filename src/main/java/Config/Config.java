@@ -8,4 +8,6 @@ public class Config {
     public static final String P2PFlowFileName = "P2PFlow.txt";
     public static final String SequenceFileName = "Sequences.txt";
     public static final int T = 5 * 60000;
+    public static final int StrengthThreshold = 1000;
+    public static final int LengthThreshold = 10;
 }

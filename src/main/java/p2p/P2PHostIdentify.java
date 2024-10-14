@@ -69,7 +69,7 @@ public class P2PHostIdentify {
 
             for (Text val : values) {
                 String[] parts = val.toString().split("\\.");
-                String prefix = parts[0] + "." + parts[1]+ "." + parts[2];
+                String prefix = parts[0] + "." + parts[1];
                 if (!dstSet.contains(prefix)) {
                     dstSet.add(prefix);
                 }
@@ -130,7 +130,7 @@ public class P2PHostIdentify {
 
                 context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
             }
-            writer.flush();
+            if (writer != null) writer.flush();
             //writer.close();
         }
     }

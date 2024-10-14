@@ -49,8 +49,8 @@ public class SequenceDatabase {
 //                System.out.println("Mining sequences from: " + seqFile.getAbsolutePath());
                     try {
                         AlgoTKS algo = new AlgoTKS();
-                        algo.setMinimumPatternLength(2);
-                        algo.setMaximumPatternLength(10);
+                        algo.setMinimumPatternLength(1);
+                        algo.setMaximumPatternLength(4);
                         PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(seqFile.getAbsolutePath(), output, k);
                         System.out.println("Number of patterns: " + patterns.size());
                         int cnt = 1;

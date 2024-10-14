@@ -9,7 +9,7 @@ import p2p.P2PManagementFlowDetect;
 public class main {
     public static void main(String[] args) {
         try {
-//            P2PHostIdentify.run();
+            P2PHostIdentify.run();
 
 
             long end = System.currentTimeMillis() + 15 * 1000;

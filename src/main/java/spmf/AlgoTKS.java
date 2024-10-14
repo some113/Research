@@ -120,7 +120,7 @@ public class AlgoTKS {
 	final boolean usePruneBranchesInsideDFSPruning = true;
 
 	// #4 rebuild tree when it is too large
-	final boolean rebuildCandidateTreeWhenTooLarge = true; //TODO: modify to original (false)
+	final boolean rebuildCandidateTreeWhenTooLarge = true	; //TODO: modify to original (false)
 	int addedCandidatesSinceLastRebuilt = 0;
 	final int MIN_CANDIDATES_COUNT_BEFORE_REBUILD = 1500;
 	final int MIN_ADDED_CANDIDATE_COUNT_SINCE_LAST_REBUILD_BEFORE_REBUILD = 400;
@@ -193,7 +193,7 @@ public class AlgoTKS {
 	 */
 	private PriorityQueue<PatternTKS> tks(String input, int k) throws IOException {
 		this.k = k;
-		System.out.println("k = " + this.k);
+//		System.out.println("k = " + this.k);
 
 		// set minsup = 1 (will be increased by the algorithm progressively)
 		minsup = 1;

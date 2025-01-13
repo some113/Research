@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="RemoteTargetsManager">
+    <option name="projectDefaultTargetUuid" value="554a34c5-e8ee-4165-8317-9a00798208d2" />
     <targets>
       <target name="ubuntu-research:latest" type="docker" uuid="c9ca4a86-e2e0-4721-87bc-15b4ba136574">
         <config>
@@ -47,7 +48,50 @@
           <option name="buildNotPull" value="false" />
           <option name="pullImageConfig">
             <PullImageConfig>
-              <option name="tagToPull" value="ubuntu-research-jdk21:latest" />
+              <option name="tagToPull" value="research:lastest" />
+            </PullImageConfig>
+          </option>
+        </config>
+        <ContributedStateBase type="JavaLanguageRuntime">
+          <config>
+            <option name="agentFolder">
+              <VolumeState>
+                <option name="targetSpecificBits">
+                  <map>
+                    <entry key="mountAsVolume" value="false" />
+                  </map>
+                </option>
+              </VolumeState>
+            </option>
+            <option name="classpathFolder">
+              <VolumeState>
+                <option name="targetSpecificBits">
+                  <map>
+                    <entry key="mountAsVolume" value="false" />
+                  </map>
+                </option>
+              </VolumeState>
+            </option>
+            <option name="homePath" value="/usr/lib/jvm/java-21-openjdk-amd64" />
+            <option name="javaVersionString" value="21.0.4" />
+          </config>
+        </ContributedStateBase>
+      </target>
+      <target name="research:latest" type="docker" uuid="554a34c5-e8ee-4165-8317-9a00798208d2">
+        <config>
+          <option name="targetPlatform">
+            <TargetPlatform />
+          </option>
+          <option name="buildImageConfig">
+            <BuildImageConfig>
+              <option name="dockerFile" value="Dockerfile" />
+              <option name="rebuildEveryTime" value="false" />
+            </BuildImageConfig>
+          </option>
+          <option name="buildNotPull" value="false" />
+          <option name="pullImageConfig">
+            <PullImageConfig>
+              <option name="tagToPull" value="research:latest" />
             </PullImageConfig>
           </option>
         </config>

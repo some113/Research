@@ -50,41 +50,11 @@ public class P2PManagementFlowDetect {
 
     static int strengthThreshold = Config.StrengthThreshold;
 
+    static String botnetListFilePath = System.getProperty("user.dir") + "/InputData/BotnetList.txt";
+
     static HashMap<String, Boolean> predictValue = new HashMap<String, Boolean>();
 
-    public static class behaviourMiningMapper extends Mapper<Object, Text, Text, Text> {
-        @Override
-        protected void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-//            System.out.println("Value in mapper: " + value);
-            String[] parts = value.toString().split(" ");
-            String dstAdd = parts[0], flow = parts[1];
-            context.write(new Text(dstAdd), new Text(flow));
-        }
-    }
-
-    //Reducer class for P2P host detection Map-Reduce Module
-    public static class behaviourMiningReducer extends Reducer<Text, Text, Text, Text> {
-
-
-        @Override
-        protected void reduce(Text key, Iterable<Text> values, Context context)
-                throws IOException, InterruptedException {
-            String eventFile = System.getProperty("user.dir") + "/OutputData/Sequences/" + key.toString() + "/event.txt";
-
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(eventFile));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    context.write(new Text(key.toString()), new Text(line));
-                }
-                br.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            BufferedWriter allWriter = null;
-        }
-    }
+    static HashSet<String> botnetList = new HashSet<String>();
 
 
     public static void frequentBehaviourMining() {
@@ -102,7 +72,7 @@ public class P2PManagementFlowDetect {
                 while ((line = br.readLine()) != null) {
 //                    System.out.println(line);
                     String[] parts = line.split(" #SUP: ");
-                    int sup = Integer.parseInt(parts[1]);
+                    float sup = Float.parseFloat(parts[1]);
                     String[] sizes = parts[0].split(" -1 ");
                     int cnt = parts[0].split(" -1 ").length - 1;
                     int totalSize = 0;
@@ -128,6 +98,7 @@ public class P2PManagementFlowDetect {
             }
 
             try {
+                // eventSequence: chuỗi danh sách index event trong patterns
                 HashMap<String, ArrayList<Integer>> eventSequence = new HashMap<String, ArrayList<Integer>>();
                 br = new BufferedReader(new FileReader(folder.getAbsolutePath() + "/all.txt"));
                 String line;
@@ -172,6 +143,7 @@ public class P2PManagementFlowDetect {
                 algo.setMaximumPatternLength(10);
                 PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(folder.getAbsolutePath() + "/behaviour.txt"
                         , folder.getAbsolutePath() + "/behaviourTKS.txt", 5);
+                int numberOfBehaviours = getNumberOfLines(folder.getAbsolutePath() + "/behaviour.txt");
                 System.out.println("Number of patterns: " + patterns.size());
                 for (PatternTKS pattern : behaviourPatterns) {
                     String[] parts = pattern.getPrefix().split(" -1 ");
@@ -181,7 +153,7 @@ public class P2PManagementFlowDetect {
                     }
                     System.out.println("Behaviour length: " + behaviourLength);
                     predictValue.put(folder.getName(), behaviourLength > lengthThreshold ||
-                            pattern.support * behaviourLength > strengthThreshold);
+                            (float) pattern.support / numberOfBehaviours * behaviourLength > strengthThreshold);
                     // TODO: modify to get result on certain criteria
                     break;
 
@@ -191,13 +163,62 @@ public class P2PManagementFlowDetect {
 
             }
         }
+        System.out.println("Predict value ");
+        for (Map.Entry<String, Boolean> entry : predictValue.entrySet()) {
+            System.out.println(entry.getKey() + " " + entry.getValue());
+        }
     }
 
-    void evaluate() {
+    static void readBotnetList() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(botnetListFilePath));
+            String line;
+            while ((line = br.readLine()) != null) {
+                botnetList.add(line);
+            }
+            br.close();
+        } catch (Exception e) {
+            System.out.println("Error when reading botnet list: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
+    static void evaluate() {
+        int TP = 0, TN = 0, FP = 0, FN = 0;
+        for (Map.Entry<String, Boolean> entry : predictValue.entrySet()) {
+            if (entry.getValue()) {
+                if (botnetList.contains(entry.getKey())) {
+                    TP++;
+                } else {
+                    FP++;
+                }
+            } else {
+                if (botnetList.contains(entry.getKey())) {
+                    FN++;
+                } else {
+                    TN++;
+                }
+            }
+        }
+
+        System.out.println("TP: " + TP + " TN: " + TN + " FP: " + FP + " FN: " + FN);
+    }
+
+    static int getNumberOfLines(String filePath) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
+        int count = 0;
+        while (br.readLine() != null) {
+            count++;
+        }
+        br.close();
+        return count;
     }
 
     public static void  run() throws IllegalArgumentException, IOException {
+        readBotnetList();
+
         frequentBehaviourMining();
+
+        evaluate();
     }
 }

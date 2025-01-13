@@ -69,7 +69,7 @@ public class P2PHostIdentify {
 
             for (Text val : values) {
                 String[] parts = val.toString().split("\\.");
-                String prefix = parts[2] + "." + parts[3];
+                String prefix = parts[1] + "." + parts[2];
 
                 if (!dstSet.contains(prefix)) {
                     dstSet.add(prefix);

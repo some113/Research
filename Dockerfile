@@ -24,3 +24,5 @@ WORKDIR /app
 
 # Command to run when starting the container
 CMD ["bash"]
+
+RUN chmod -R 777 /app

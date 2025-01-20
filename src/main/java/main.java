@@ -16,9 +16,9 @@ public class main {
 
 //            Thread.sleep(30 * 1000);
 //            System.out.println("Start sequence mining");
-            SequenceDatabase.run();
-
-            P2PManagementFlowDetect.run();
+//            SequenceDatabase.run();
+//
+//            P2PManagementFlowDetect.run();
         } catch (Exception e) {
             e.printStackTrace();
         }

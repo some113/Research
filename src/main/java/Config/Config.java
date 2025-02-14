@@ -1,7 +1,7 @@
 package Config;
 
 public class Config {
-    public static final int BGPSupport = 8;
+    public static final int BGPSupport = 4;
     public static final int NumberOfByteThread = 300;
     public static final int NumberOfPacketThread = 5;
     public static final int TIMEGAP = 10000;

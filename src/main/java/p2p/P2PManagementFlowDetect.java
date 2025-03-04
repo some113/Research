@@ -140,9 +140,9 @@ public class P2PManagementFlowDetect {
             try {
                 AlgoTKS algo = new AlgoTKS();
                 algo.setMinimumPatternLength(2);
-                algo.setMaximumPatternLength(10);
+                algo.setMaximumPatternLength(20);
                 PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(folder.getAbsolutePath() + "/behaviour.txt"
-                        , folder.getAbsolutePath() + "/behaviourTKS.txt", 5);
+                        , folder.getAbsolutePath() + "/behaviourTKS.txt", 20);
                 int numberOfBehaviours = getNumberOfLines(folder.getAbsolutePath() + "/behaviour.txt");
                 System.out.println("Number of patterns: " + patterns.size());
                 for (PatternTKS pattern : behaviourPatterns) {

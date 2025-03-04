@@ -5,6 +5,8 @@ import p2p.P2PHostIdentify;
 import p2p.P2PManagementFlowDetect;
 import sequence.SequenceDatabase;
 import p2p.P2PManagementFlowDetect;
+import sequence.EventSequence;
+import Behaviour.BehaviourExtract;
 
 public class main {
     public static void main(String[] args) {
@@ -17,8 +19,12 @@ public class main {
 //            Thread.sleep(30 * 1000);
 //            System.out.println("Start sequence mining");
 //            SequenceDatabase.run();
-//
+////
 //            P2PManagementFlowDetect.run();
+
+            EventSequence.run();
+
+            BehaviourExtract.run();
         } catch (Exception e) {
             e.printStackTrace();
         }

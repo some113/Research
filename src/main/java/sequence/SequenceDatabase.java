@@ -38,7 +38,7 @@ public class SequenceDatabase {
         File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
         BufferedWriter writer = null;
 
-        int k = 5;
+        int k = 20;
 
         for (File seqFol : sequenceFolder.listFiles()) {
             System.out.println("Mining sequences from: " + seqFol.getAbsolutePath());

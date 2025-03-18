@@ -196,7 +196,7 @@ public class AlgoTKS {
 //		System.out.println("k = " + this.k);
 
 		// set minsup = 1 (will be increased by the algorithm progressively)
-		minsup = 1;
+		minsup = 2;
 
 		candidateExplored = 0;
 
@@ -879,6 +879,10 @@ public class AlgoTKS {
 	 */
 	public void showSequenceIdentifiersInOutput(boolean showSequenceIdentifiers) {
 		this.outputSequenceIdentifiers = showSequenceIdentifiers;
+	}
+
+	public void setMinsup(int minsup) {
+		this.minsup = minsup;
 	}
 
 }

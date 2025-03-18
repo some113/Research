@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 
 import p2p.P2PHostIdentify;
@@ -9,6 +10,14 @@ import p2p.P2PManagementFlowDetect;
 public class main {
     public static void main(String[] args) {
         try {
+            File outputFolder = new File(System.getProperty("user.dir") + "/OutputData");
+            if (outputFolder.exists()) { // delete output folder
+                File[] files = outputFolder.listFiles();
+                for (File file : files) {
+                    file.delete();
+                }
+            }
+
             P2PHostIdentify.run();
 
 
@@ -16,9 +25,9 @@ public class main {
 
 //            Thread.sleep(30 * 1000);
 //            System.out.println("Start sequence mining");
-//            SequenceDatabase.run();
-//
-//            P2PManagementFlowDetect.run();
+            SequenceDatabase.run();
+
+            P2PManagementFlowDetect.run();
         } catch (Exception e) {
             e.printStackTrace();
         }

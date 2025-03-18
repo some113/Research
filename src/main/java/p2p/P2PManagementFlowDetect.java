@@ -35,9 +35,9 @@ public class P2PManagementFlowDetect {
         public int compareTo(Pattern o) {
             float compare = this.sup - o.sup;
             if (length != o.length) {
-                return length - o.length;
+                return o.length - length;
             } else if (compare !=0){
-                return compare > 0 ? 1 : -1;
+                return compare > 0 ? -1 : 1;
             } else {
                 return 0;
             }
@@ -48,13 +48,45 @@ public class P2PManagementFlowDetect {
 
     static int lengthThreshold = Config.LengthThreshold;
 
-    static int strengthThreshold = Config.StrengthThreshold;
+    static double strengthThreshold = Config.StrengthThreshold;
 
     static String botnetListFilePath = System.getProperty("user.dir") + "/InputData/BotnetList.txt";
 
-    static HashMap<String, Boolean> predictValue = new HashMap<String, Boolean>();
+    static HashMap<String, Boolean> predictValues = new HashMap<String, Boolean>();
 
     static HashSet<String> botnetList = new HashSet<String>();
+
+    static ArrayList<Pattern> patternMapping(File folder) {
+        ArrayList<Pattern> patterns = new ArrayList<Pattern>();
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(folder.getAbsolutePath() + "/event.txt"));
+            String line;
+            while ((line = br.readLine()) != null) {
+//                    System.out.println(line);
+                String[] parts = line.split(" #SUP: ");
+                float sup = Float.parseFloat(parts[1]);
+                String[] sizes = parts[0].split(" -1 ");
+                int cnt = parts[0].split(" -1 ").length;
+                int totalSize = 0;
+                for ( String size : sizes) {
+                    totalSize += Integer.parseInt(size);
+                }
+//                    System.out.println("Count: " + cnt);
+                String regex = parts[0].substring(0, parts[0].lastIndexOf(" -1"));
+                regex ="(.*?,)?" + regex.replace(" -1 ", ",(.*?,)?") + "(,.*?)?";
+//                    System.out.println(regex);
+                patterns.add(new Pattern(regex, (float) sup, cnt, totalSize));
+            }
+            br.close();
+        } catch (Exception e) {
+            System.out.println("Error when mining behaviour: " + e.getMessage());
+            e.printStackTrace();
+        }
+        //Sort in reverse
+        Collections.sort(patterns);
+        return patterns;
+    }
 
 
     public static void frequentBehaviourMining() {
@@ -66,32 +98,9 @@ public class P2PManagementFlowDetect {
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
             System.out.println("Mining sequences for: " + folder.getName());
 
-            try {
-                br = new BufferedReader(new FileReader(folder.getAbsolutePath() + "/event.txt"));
-                String line;
-                while ((line = br.readLine()) != null) {
-//                    System.out.println(line);
-                    String[] parts = line.split(" #SUP: ");
-                    float sup = Float.parseFloat(parts[1]);
-                    String[] sizes = parts[0].split(" -1 ");
-                    int cnt = parts[0].split(" -1 ").length - 1;
-                    int totalSize = 0;
-                    for ( String size : sizes) {
-                        totalSize += Integer.parseInt(size);
-                    }
-//                    System.out.println("Count: " + cnt);
-                    String regex = parts[0].substring(0, parts[0].lastIndexOf(" -1"));
-                    regex ="(.*?,)?" + regex.replace(" -1 ", ",(.*?,)?") + "(,.*?)?";
-//                    System.out.println(regex);
-                    patterns.add(new Pattern(regex, (float) sup, cnt, totalSize));
-                }
-                br.close();
-            } catch (Exception e) {
-                System.out.println("Error when mining behaviour: " + e.getMessage());
-                e.printStackTrace();
-            }
+            patterns = patternMapping(folder);
 
-            Collections.sort(patterns);
+
             for (int i = patterns.size() - 1; i >= 0; i--) {
 //                System.out.println(patterns.get(i).pattern + " " + patterns.get(i).sup + " " + patterns.get(i).length);
                 patternIDMap.put(i, patterns.get(i));
@@ -103,34 +112,39 @@ public class P2PManagementFlowDetect {
                 br = new BufferedReader(new FileReader(folder.getAbsolutePath() + "/all.txt"));
                 String line;
 
+                writer = new BufferedWriter(new FileWriter(folder.getAbsolutePath() + "/behaviour.txt"));
+                // Create event sequence while mapping with destIP
+                // No longer need if already mapping in previous step
+                // TODO: handle no matching flows
                 while ((line = br.readLine()) != null) {
-                    String[] parts = line.split(" ");
-                    String dstAdd = parts[0], flow = parts[1];
-                    for (int i = patterns.size() - 1; i >= 0; i--) {
-                        if (flow.matches(patterns.get(i).pattern)) {
-                            if (!eventSequence.containsKey(dstAdd)) {
-                                eventSequence.put(dstAdd, new ArrayList<>());
+                    String[] parts = line.split("\\.");
+//                    String dstAdd = parts[0], flow = parts[1];
+                    boolean matched = false;
+                    for (String flow : parts) {
+                        for (int i = 0; i < patterns.size(); i++) {
+                            if (flow.matches(patterns.get(i).pattern)) {
+                                writer.write(i + " -1 ");
+                                matched = true;
+                                break;
                             }
-                            eventSequence.get(dstAdd).add(i);
-                            break;
                         }
                     }
+                    writer.write(matched ? "-2\n" : "");
                 }
 
-                writer = new BufferedWriter(new FileWriter(folder.getAbsolutePath() + "/behaviour.txt"));
 
-                for (Map.Entry<String, ArrayList<Integer>> entry : eventSequence.entrySet()) {
-                    String dstAdd = entry.getKey();
-                    System.out.println("Event sequence database of: " + dstAdd);
-//                    writer.write(dstAdd + " ");
-                    ArrayList<Integer> events = entry.getValue();
-                    for (int i = 0; i < events.size(); i++) {
-                        System.out.printf("%d ", events.get(i));
-                        writer.write(events.get(i) + " -1 ");
-                    }
-                    writer.write("-2\n");
-                    System.out.println();
-                }
+//                for (Map.Entry<String, ArrayList<Integer>> entry : eventSequence.entrySet()) {
+//                    String dstAdd = entry.getKey();
+//                    System.out.println("Event sequence database of: " + dstAdd);
+////                    writer.write(dstAdd + " ");
+//                    ArrayList<Integer> events = entry.getValue();
+//                    for (int i = 0; i < events.size(); i++) {
+//                        System.out.printf("%d ", events.get(i));
+//                        writer.write(events.get(i) + " -1 ");
+//                    }
+//                    writer.write("-2\n");
+//                    System.out.println();
+//                }
                 writer.flush();
             }  catch (Exception e) {
                 System.out.println("Error when mining behaviour: " + e.getMessage());
@@ -139,11 +153,12 @@ public class P2PManagementFlowDetect {
 
             try {
                 AlgoTKS algo = new AlgoTKS();
-                algo.setMinimumPatternLength(2);
+                algo.setMinimumPatternLength(1);
                 algo.setMaximumPatternLength(10);
                 PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(folder.getAbsolutePath() + "/behaviour.txt"
-                        , folder.getAbsolutePath() + "/behaviourTKS.txt", 5);
+                        , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
                 int numberOfBehaviours = getNumberOfLines(folder.getAbsolutePath() + "/behaviour.txt");
+
                 System.out.println("Number of patterns: " + patterns.size());
                 for (PatternTKS pattern : behaviourPatterns) {
                     String[] parts = pattern.getPrefix().split(" -1 ");
@@ -153,12 +168,20 @@ public class P2PManagementFlowDetect {
                         behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
                     }
                     float behaviourSupport = (float) pattern.support / numberOfBehaviours;
+                    if (behaviourSupport < 0.5) {
+                        continue;
+                    }
                     System.out.println("Behaviour length: " + behaviourLength);
-                    predictValue.put(folder.getName(), behaviourLength > lengthThreshold ||
-                            behaviourSupport * behaviourLength > strengthThreshold);
-                    // TODO: modify to get result on certain criteria
-                    break;
 
+                    boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
+                    if (predictValue) {
+                        predictValues.put(folder.getName(), true);
+                        break;
+                    }
+                    // TODO: modify to get result on certain criteria
+                }
+                if (!predictValues.containsKey(folder.getName())) {
+                    predictValues.put(folder.getName(), false);
                 }
 
             } catch (Exception e) {
@@ -166,7 +189,7 @@ public class P2PManagementFlowDetect {
             }
         }
         System.out.println("Predict value ");
-        for (Map.Entry<String, Boolean> entry : predictValue.entrySet()) {
+        for (Map.Entry<String, Boolean> entry : predictValues.entrySet()) {
             System.out.println(entry.getKey() + " " + entry.getValue());
         }
     }
@@ -176,6 +199,9 @@ public class P2PManagementFlowDetect {
             BufferedReader br = new BufferedReader(new FileReader(botnetListFilePath));
             String line;
             while ((line = br.readLine()) != null) {
+                if (line.startsWith("#")) {
+                    continue;
+                }
                 botnetList.add(line);
             }
             br.close();
@@ -187,7 +213,7 @@ public class P2PManagementFlowDetect {
 
     static void evaluate() {
         int TP = 0, TN = 0, FP = 0, FN = 0;
-        for (Map.Entry<String, Boolean> entry : predictValue.entrySet()) {
+        for (Map.Entry<String, Boolean> entry : predictValues.entrySet()) {
             if (entry.getValue()) {
                 if (botnetList.contains(entry.getKey())) {
                     TP++;

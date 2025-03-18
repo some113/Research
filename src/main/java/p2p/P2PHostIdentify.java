@@ -4,10 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import Config.Config;
 import org.apache.hadoop.fs.Path;
@@ -43,12 +40,13 @@ public class P2PHostIdentify {
         protected void map(Object key, Text value, Context context) throws IOException, InterruptedException {
 //            System.out.println("Value in mapper: " + value);
             String[] parts = value.toString().split(" ");
-            float time = Float.parseFloat(parts[0]);
-            String srcAdd = parts[2], dstAdd = parts[3], flow = parts[4];
+            String time = parts[0], srcAdd = parts[2], dstAdd = parts[3], flow = parts[4];
             // TODO: Remove and process IP6 too
             if (srcAdd.contains(":") || dstAdd.contains(":")) {
                 return;
             }
+            srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
+            dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
             context.write(new Text(srcAdd), new Text("" + time + " " + dstAdd + " " + flow));
         }
     }
@@ -62,14 +60,17 @@ public class P2PHostIdentify {
                 throws IOException, InterruptedException {
 //            System.out.println("Key value: " + key);
             Set<String> dstSet = new HashSet<String>();
+            HashMap<String, ArrayList<String>> flowMap = new HashMap<String, ArrayList<String>>(); //<prefix, flow>>
+
+            String srcAdd = key.toString();
             File dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
             if (!dir.exists()) {
                 dir.mkdir();
             }
 
             for (Text val : values) {
-                String[] parts = val.toString().split("\\.");
-                String prefix = parts[2] + "." + parts[3];
+                String[] parts = val.toString().split(" ")[1].split("\\.");
+                String prefix = parts[0] + "." + parts[1];
 
                 if (!dstSet.contains(prefix)) {
                     dstSet.add(prefix);
@@ -82,9 +83,25 @@ public class P2PHostIdentify {
             if (dstSet.size() < p2PHostDetectionThreshold) {
                 return;
             }
+//        }
+//    }
+//    public static class SequenceMapper extends Mapper<Object, Text, Text, Text> {
+//        @Override
+//        protected void map(Object key, Text value, Context context) throws IOException, InterruptedException) {
+//
+//        }
+//    }
+//
+//    public static class SequenceReducer extends Reducer<Text, Text, Text, Text> {
+//        @Override
+//        protected void reduce(Text key, Iterable<Text> values, Context context) {
+//
+//    }
 
             BufferedWriter allWriter = null;
+            dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/");
 
+            dir.mkdir();
 
             for (Text val : values) {
 
@@ -102,12 +119,6 @@ public class P2PHostIdentify {
                     continue;
                 }
 
-                String srcAdd = key.toString().substring(0, key.toString().lastIndexOf("."));
-                dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
-
-                dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/");
-                dir.mkdir();
-
                 int i = (int) endTime / T;
 
                 if (!writerMap.containsKey(srcAdd + i)) {
@@ -120,19 +131,38 @@ public class P2PHostIdentify {
                 writer.write(flow.replace(",", " -1 ") + " -1 -2\n");
                 writer.flush();
 
-                if (!writerMap.containsKey("all" + srcAdd)) {
-                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
-                    writerMap.put("all" + srcAdd, new BufferedWriter(new FileWriter(
-                            System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt", true)));
+                if (!flowMap.containsKey(dstAdd + i)) {
+                    flowMap.put(dstAdd + i, new ArrayList<String>());
                 }
+                flowMap.get(dstAdd + i).add(flow);
 
-                allWriter = writerMap.get("all" + srcAdd);
+//                if (!writerMap.containsKey("all" + srcAdd)) {
+//                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
+//                    writerMap.put("all" + srcAdd, new BufferedWriter(new FileWriter(
+//                            System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt", true)));
+//                }
 
-                allWriter.write(dstAdd + " " + flow + "\n");
-                allWriter.flush();
+//                allWriter = writerMap.get("all" + srcAdd);
+//
+//                allWriter.write(dstAdd + " " + flow + "\n");
+//                allWriter.flush();
 
                 context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
             }
+            File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
+            allWriter = new BufferedWriter(new FileWriter(file.getAbsolutePath(), true));
+
+            for (String flowArray : flowMap.keySet()) {
+                for (String flow : flowMap.get(flowArray)) {
+                    allWriter.write(flow);
+                    if (!flow.equals(flowMap.get(flowArray).get(flowMap.get(flowArray).size() - 1))) {
+                        allWriter.write(".");
+                    }
+                }
+                allWriter.write("\n");
+            }
+            allWriter.flush();
+            allWriter.close();
             if (writer != null) writer.flush();
             //writer.close();
         }
@@ -165,7 +195,7 @@ public class P2PHostIdentify {
 //        FileInputFormat.addInputPath(jobP2PHostDetection,
 //                new Path(PeerCatcherConfigure.ROOT_LOCATION + "/INPUT/P2P"));
         FileOutputFormat.setOutputPath(jobP2PHostDetection,
-                new Path(System.getProperty("user.dir") +"/OutputData"));
+                new Path(System.getProperty("user.dir") +"/OutputData/P2P_detect"));
         // set the number of tasks for the reduce part of the job
         jobP2PHostDetection.setNumReduceTasks(18);
 

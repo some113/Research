@@ -38,7 +38,7 @@ public class SequenceDatabase {
         File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
         BufferedWriter writer = null;
 
-        int k = 5;
+        int k = 15;
 
         for (File seqFol : sequenceFolder.listFiles()) {
             System.out.println("Mining sequences from: " + seqFol.getAbsolutePath());
@@ -51,21 +51,23 @@ public class SequenceDatabase {
                     int lines = 0;
                     while (reader.readLine() != null) lines++;
                     reader.close();
-//                System.out.println("Mining sequences from: " + seqFile.getAbsolutePath());
+                System.out.println("Mining sequences from: " + seqFile.getAbsolutePath());
                     try {
                         AlgoTKS algo = new AlgoTKS();
                         algo.setMinimumPatternLength(1);
-                        algo.setMaximumPatternLength(5);
+                        algo.setMaximumPatternLength(30);
+                        // TODO: adjust
+//                        algo.setMinsup((int)(0.2 * lines));
                         PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(seqFile.getAbsolutePath(), output, k);
 //                        System.out.println("Number of patterns: " + patterns.size());
-                        int cnt = 1;
                         while (!patterns.isEmpty()) {
                             PatternTKS pattern = patterns.poll();
                             // TODO: modify to get unique pattern, accumulate support from all file
-                            if (!eventSet.contains(pattern) && patterns.size() < k) eventSet.add(pattern);
-                            if (patterns.size() < k) writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
-                            cnt++;
-                            if (patterns.size() > k) break;
+//                            if (!eventSet.contains(pattern) && patterns.size() < k) eventSet.add(pattern);
+//                            if (patterns.size() < k) writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
+//                            cnt++;
+//                            if (patterns.size() > k) break;
+                            writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
                         }
                     } catch (Exception e) {
                         System.out.println("Error when mining sequences: " + e.getMessage());

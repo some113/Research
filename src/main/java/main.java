@@ -2,10 +2,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 
+import Event.EventSequenceGenerate;
 import p2p.P2PHostIdentify;
 import p2p.P2PManagementFlowDetect;
 import sequence.SequenceDatabase;
 import p2p.P2PManagementFlowDetect;
+import Event.EventSequenceGenerate;
 
 public class main {
     public static void main(String[] args) {
@@ -18,14 +20,12 @@ public class main {
                 }
             }
 
-            P2PHostIdentify.run();
+//            P2PHostIdentify.run();
 
-
-            long end = System.currentTimeMillis() + 15 * 1000;
-
-//            Thread.sleep(30 * 1000);
 //            System.out.println("Start sequence mining");
             SequenceDatabase.run();
+
+            EventSequenceGenerate.run();
 
             P2PManagementFlowDetect.run();
         } catch (Exception e) {

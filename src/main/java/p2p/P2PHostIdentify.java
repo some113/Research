@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.util.*;
 
 import Config.Config;
@@ -28,11 +29,14 @@ public class P2PHostIdentify {
 
     private static String P2PFlowFileName = Config.P2PFlowFileName;
 
-    static HashMap<String, BufferedWriter> writerMap = new HashMap<String, BufferedWriter>(); //<prefix, writer>
+    static HashMap<String, BufferedWriter> sequenceToMineWriterMap = new HashMap<String, BufferedWriter>(); //<prefix, writer>
+
+    static HashMap<String, BufferedWriter> sequenceWriterMap = new HashMap<String, BufferedWriter>(); //<prefix, writer>
 
     private static int T = Config.T;
 
     private static BufferedWriter writer = null;
+
 
     //Mapper class for P2P host detection Map-Reduce Module
     public static class P2PHostDetectionMapper extends Mapper<Object, Text, Text, Text> {
@@ -60,10 +64,14 @@ public class P2PHostIdentify {
                 throws IOException, InterruptedException {
 //            System.out.println("Key value: " + key);
             Set<String> dstSet = new HashSet<String>();
-            HashMap<String, ArrayList<String>> flowMap = new HashMap<String, ArrayList<String>>(); //<prefix, flow>>
+            HashMap<Integer, HashMap<String, ArrayList<String>>> flowMap = new HashMap<Integer, HashMap<String,ArrayList<String>>>(); //<prefix, flow>>
 
             String srcAdd = key.toString();
             File dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
+            if (!dir.exists()) {
+                dir.mkdir();
+            }
+            dir = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/");
             if (!dir.exists()) {
                 dir.mkdir();
             }
@@ -83,23 +91,14 @@ public class P2PHostIdentify {
             if (dstSet.size() < p2PHostDetectionThreshold) {
                 return;
             }
-//        }
-//    }
-//    public static class SequenceMapper extends Mapper<Object, Text, Text, Text> {
-//        @Override
-//        protected void map(Object key, Text value, Context context) throws IOException, InterruptedException) {
-//
-//        }
-//    }
-//
-//    public static class SequenceReducer extends Reducer<Text, Text, Text, Text> {
-//        @Override
-//        protected void reduce(Text key, Iterable<Text> values, Context context) {
-//
 //    }
 
             BufferedWriter allWriter = null;
             dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/");
+
+            dir.mkdir();
+
+            dir = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/" + srcAdd + "/");
 
             dir.mkdir();
 
@@ -121,47 +120,54 @@ public class P2PHostIdentify {
 
                 int i = (int) endTime / T;
 
-                if (!writerMap.containsKey(srcAdd + i)) {
-                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/seq" + i + ".txt");
-                    writerMap.put(srcAdd + i, new BufferedWriter(new FileWriter(
-                            System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/seq" + i + ".txt", true)));
+                if (!sequenceToMineWriterMap.containsKey(srcAdd + i)) {
+                    File file = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/" + srcAdd + "/seq" + i + ".txt");
+                    sequenceToMineWriterMap.put(srcAdd + i, new BufferedWriter(new FileWriter(
+                            System.getProperty("user.dir") + "/OutputData/SequencesToMine/" + srcAdd + "/seq" + i + ".txt", true)));
                 }
-                writer = writerMap.get(srcAdd + i);
+                writer = sequenceToMineWriterMap.get(srcAdd + i);
 
                 writer.write(flow.replace(",", " -1 ") + " -1 -2\n");
                 writer.flush();
 
-                if (!flowMap.containsKey(dstAdd + i)) {
-                    flowMap.put(dstAdd + i, new ArrayList<String>());
+                if (!flowMap.containsKey(i)) {
+                    flowMap.put(i, new HashMap<String, ArrayList<String>>());
                 }
-                flowMap.get(dstAdd + i).add(flow);
+                if (!flowMap.get(i).containsKey(dstAdd)) {
+                     flowMap.get(i).put(dstAdd, new ArrayList<String>());
+                }
+                flowMap.get(i).get(dstAdd).add(flow);
 
-//                if (!writerMap.containsKey("all" + srcAdd)) {
+//                if (!sequenceToMineWriterMap.containsKey("all" + srcAdd)) {
 //                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
-//                    writerMap.put("all" + srcAdd, new BufferedWriter(new FileWriter(
+//                    sequenceToMineWriterMap.put("all" + srcAdd, new BufferedWriter(new FileWriter(
 //                            System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt", true)));
 //                }
 
-//                allWriter = writerMap.get("all" + srcAdd);
+//                allWriter = sequenceToMineWriterMap.get("all" + srcAdd);
 //
 //                allWriter.write(dstAdd + " " + flow + "\n");
 //                allWriter.flush();
 
                 context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
             }
-            File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
-            allWriter = new BufferedWriter(new FileWriter(file.getAbsolutePath(), true));
 
-            for (String flowArray : flowMap.keySet()) {
-                for (String flow : flowMap.get(flowArray)) {
-                    allWriter.write(flow);
-                    if (!flow.equals(flowMap.get(flowArray).get(flowMap.get(flowArray).size() - 1))) {
-                        allWriter.write(".");
+            for (Integer sequenceNumber : flowMap.keySet()) {
+                File sequenceFile = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/seq" + sequenceNumber + ".txt");
+                allWriter = new BufferedWriter(new FileWriter(sequenceFile, true));
+                for (String dstAdd : flowMap.get(sequenceNumber).keySet()) {
+                    allWriter.write(dstAdd + " ");
+                    for (String flow : flowMap.get(sequenceNumber).get(dstAdd)) {
+                        allWriter.write(flow);
+                        if (!flow.equals(flowMap.get(sequenceNumber).get(dstAdd).get(flowMap.get(sequenceNumber).get(dstAdd).size() - 1))) {
+                            allWriter.write(".");
+                        }
                     }
                 }
                 allWriter.write("\n");
+
+                allWriter.flush();
             }
-            allWriter.flush();
             allWriter.close();
             if (writer != null) writer.flush();
             //writer.close();
@@ -215,7 +221,7 @@ public class P2PHostIdentify {
             }
         }
 
-        for (Map.Entry<String, BufferedWriter> entry : writerMap.entrySet()) {
+        for (Map.Entry<String, BufferedWriter> entry : sequenceToMineWriterMap.entrySet()) {
             entry.getValue().close();
         }
     }

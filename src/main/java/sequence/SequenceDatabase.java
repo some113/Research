@@ -35,18 +35,27 @@ public class SequenceDatabase {
     });
     private static void sequenceMining() {
         String output = System.getProperty("user.dir") + "/OutputData/events.txt";
-        File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
+        File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/");
+        File eventFolder = new File(System.getProperty("user.dir") + "/OutputData/Events/");
+
+        if (!eventFolder.exists()) {
+            eventFolder.mkdir();
+        }
         BufferedWriter writer = null;
 
+        // k is huge to get more pattern but still only get those qualified afterward
         int k = 15;
 
         for (File seqFol : sequenceFolder.listFiles()) {
             System.out.println("Mining sequences from: " + seqFol.getAbsolutePath());
-            String eventFile = seqFol.getAbsolutePath() + "/event.txt";
             try {
-                writer = new BufferedWriter(new FileWriter(eventFile));
+                writer = null;
+                File hostEventFolder = new File(eventFolder.getAbsolutePath() + "/" + seqFol.getName());
+                hostEventFolder.mkdir();
 
                 for (File seqFile : seqFol.listFiles(file -> !file.getName().equals("all.txt"))) {
+                    String eventFile = hostEventFolder.getAbsolutePath() + "/" + seqFile.getName();
+                    writer = new BufferedWriter(new FileWriter(eventFile));
                     BufferedReader reader = new BufferedReader(new FileReader(seqFile.getAbsolutePath()));
                     int lines = 0;
                     while (reader.readLine() != null) lines++;
@@ -60,6 +69,7 @@ public class SequenceDatabase {
 //                        algo.setMinsup((int)(0.2 * lines));
                         PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(seqFile.getAbsolutePath(), output, k);
 //                        System.out.println("Number of patterns: " + patterns.size());
+                        int cnt = 0;
                         while (!patterns.isEmpty()) {
                             PatternTKS pattern = patterns.poll();
                             // TODO: modify to get unique pattern, accumulate support from all file
@@ -67,8 +77,10 @@ public class SequenceDatabase {
 //                            if (patterns.size() < k) writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
 //                            cnt++;
 //                            if (patterns.size() > k) break;
-                            writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
+                            writer.write(pattern.getPrefix() + " #SUP: " + pattern.support + "\n");
+                            if (++cnt > 15) break;
                         }
+                        writer.flush();
                     } catch (Exception e) {
                         System.out.println("Error when mining sequences: " + e.getMessage());
                         e.printStackTrace();

@@ -32,3 +32,4 @@ bin/
 /InputData/
 
 *.java~
+*.class

@@ -110,7 +110,7 @@ public class P2PManagementFlowDetect {
                     algo.setMaximumPatternLength(10);
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
-                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath());
+                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
 
 //                    System.out.println("Number of patterns: " + patterns.size());
                     for (PatternTKS pattern : behaviourPatterns) {
@@ -141,10 +141,10 @@ public class P2PManagementFlowDetect {
 
                 }
             }
-            System.out.println("Predict value ");
-            for (Map.Entry<String, Boolean> entry : predictValues.entrySet()) {
-                System.out.println(entry.getKey() + " " + entry.getValue());
-            }
+        }
+        System.out.println("Predict value ");
+        for (Map.Entry<String, Boolean> entry : predictValues.entrySet()) {
+            System.out.println(entry.getKey() + " " + entry.getValue());
         }
     }
 
@@ -153,13 +153,15 @@ public class P2PManagementFlowDetect {
             BufferedReader br = new BufferedReader(new FileReader(file.getAbsolutePath()));
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
             String line = br.readLine();
-            while (line != null && !line.startsWith("#")) {
+            while (line != null && line.startsWith("#")) {
                 String[] parts = line.split("#");
                 int patternLength = Integer.parseInt(parts[2].split("LEN: ")[1]);
                 float patternSup = Float.parseFloat(parts[3].split("SUP: ")[1]);
-                Pattern pattern = new Pattern(parts[0], patternSup, patternLength, patternLength);
+                String patternRegex = parts[1].substring(parts[1].indexOf(":")+1);
+                int patternInd = Integer.parseInt(parts[1].split(":")[0]);
+                Pattern pattern = new Pattern(patternRegex, patternSup, patternLength, patternLength);
 
-                patternIDMap.put(Integer.parseInt(parts[0].split(":")[0]), pattern);
+                patternIDMap.put(patternInd, pattern);
                 line = br.readLine();
             }
             br.close();

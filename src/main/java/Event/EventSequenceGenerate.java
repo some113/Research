@@ -41,14 +41,18 @@ public class EventSequenceGenerate {
         }
 
         public int compareTo(Pattern o) {
-            float compare = this.sup - o.sup;
+            float supDiff = this.sup - o.sup;
+            float lengthDiff = this.length - o.length;
+
             if (length != o.length) {
                 return o.length - length;
-            } else if (compare !=0){
-                return compare > 0 ? -1 : 1;
+            } else if (supDiff !=0){
+                return supDiff > 0 ? -1 : 1;
             } else {
                 return 0;
             }
+//            return (int) -compare;
+//            return -(int)(supDiff + 5*lengthDiff);
         }
 
         @Override
@@ -101,7 +105,7 @@ public class EventSequenceGenerate {
                 }
 //                    System.out.println("Count: " + cnt);
                 String regex = parts[0].substring(0, parts[0].lastIndexOf(" -1"));
-                regex ="(.*?,)?" + regex.replace(" -1 ", ",(.*?,)?") + "(,.*?)?";
+                regex ="(?:[^,]*,)?" + regex.replace(" -1 ", ",(?:[^,]*,)?") + "(?:,[^,]*)?";
 //                    System.out.println(regex);
                 patterns.add(new Pattern(regex, (float) sup, cnt, totalSize));
             }
@@ -124,6 +128,8 @@ public class EventSequenceGenerate {
             eventSequenceFolder.mkdir();
         }
 
+
+
         for (File hostSequenceFolder : sequenceFolder.listFiles()) {
             HashMap<String, ArrayList<Integer>> evenSequenceMap = new HashMap<String, ArrayList<Integer>>();
             HashMap<String, Pattern> patternMap = new HashMap<String, Pattern>();
@@ -137,7 +143,12 @@ public class EventSequenceGenerate {
                 hostEventSequenceFolder.mkdir();
             }
 
-            File firstFile = hostSequenceFolder.listFiles()[0].getName().equals("all.txt") ? hostSequenceFolder.listFiles()[1] : hostSequenceFolder.listFiles()[0];
+            File[] numberSortedSequenceFile = hostSequenceFolder.listFiles();
+            if (numberSortedSequenceFile != null) {
+                Arrays.sort(numberSortedSequenceFile, Comparator.comparingInt(f -> extractIndexFromFilename(f.getName(), timewindowPattern)));
+            }
+
+            File firstFile = numberSortedSequenceFile[0];
             int minIndex = extractIndexFromFilename(firstFile.getName(), timewindowPattern);
             int maxIndex = minIndex + N;
 
@@ -152,45 +163,53 @@ public class EventSequenceGenerate {
             }
             writer.flush();
 
-            for (File sequenceFile : hostSequenceFolder.listFiles(file -> !file.getName().equals("all.txt"))) {
+            for (File sequenceFile : numberSortedSequenceFile) {
                 int index = extractIndexFromFilename(sequenceFile.getName(), timewindowPattern);
                 if (index > maxIndex) {
                     printFromEventSequenceMap(evenSequenceMap, writer);
-                    patternMap = collectEventsInATimeWindow(hostEventFolder, minIndex, maxIndex);
-                    eventSet.addAll(patternMap.values());
-                    cnt = 1;
-                    for (EventSequenceGenerate.Pattern pattern : eventSet) {
-                        writer.write("#" + cnt++ + ":" + pattern.pattern + " #SUP: " + pattern.sup + "\n");
-                    }
-                    writer.flush();
+                    evenSequenceMap.clear();
 
                     minIndex = index;
                     maxIndex = minIndex + N;
+                    patternMap = collectEventsInATimeWindow(hostEventFolder, minIndex, maxIndex);
+                    eventSet.clear();
+                    eventSet.addAll(patternMap.values());
+
                     eventSequenceFile = new File(System.getProperty("user.dir") + "/OutputData/EventSequences/" + host + "/" + minIndex + ".txt");
                     writer = new BufferedWriter(new FileWriter(eventSequenceFile.getAbsolutePath()));
+                    cnt = 1;
+                    for (EventSequenceGenerate.Pattern pattern : eventSet) {
+                        writer.write("#" + cnt++ + ":" + pattern.pattern + "#LEN: " + pattern.length + "#SUP: " + pattern.sup + "\n");
+                    }
+                    writer.flush();
                 }
 
 
                 try {
                     br = new BufferedReader(new FileReader(sequenceFile.getAbsolutePath()));
                     String line = br.readLine();
-                    while (line != null) {
+                    while (line != null && !line.isEmpty()) {
                         String[] parts = line.split(" ");
                         String dstAdd = parts[0], flow = parts[1];
 
-                        cnt = 1;
-                        for (EventSequenceGenerate.Pattern pattern : eventSet) {
-                            if (flow.matches(pattern.pattern)) {
-                                if (evenSequenceMap.containsKey(pattern.pattern)) {
-                                    evenSequenceMap.get(dstAdd).add(cnt);
-                                } else {
-                                    ArrayList<Integer> list = new ArrayList<Integer>();
-                                    list.add(cnt);
-                                    evenSequenceMap.put(dstAdd, list);
+                        for (String flowUnit : flow.split("\\.")) {
+                            cnt = 1;
+                            for (EventSequenceGenerate.Pattern pattern : eventSet) {
+                                java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern.pattern);
+                                Matcher m = p.matcher(flowUnit);
+
+                                if (m.find()) {
+                                    if (evenSequenceMap.containsKey(dstAdd)) {
+                                        evenSequenceMap.get(dstAdd).add(cnt);
+                                    } else {
+                                        ArrayList<Integer> list = new ArrayList<Integer>();
+                                        list.add(cnt);
+                                        evenSequenceMap.put(dstAdd, list);
+                                    }
+                                    break;
                                 }
-                                break;
+                                cnt++;
                             }
-                            cnt++;
                         }
                         line = br.readLine();
                     }
@@ -230,12 +249,12 @@ public class EventSequenceGenerate {
         try {
             for (Map.Entry<String, ArrayList<Integer>> entry : eventSequenceMap.entrySet()) {
                 for (int i = 0; i < entry.getValue().size(); i++) {
-                    writer.write(entry.getValue().get(i) + " -1");
+                    writer.write(entry.getValue().get(i) + " -1 ");
                 }
-                writer.write(" -2\n");
+                writer.write("-2\n");
             }
             writer.flush();
-            writer.close();
+//            writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

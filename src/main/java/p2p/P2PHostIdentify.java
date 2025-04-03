@@ -51,6 +51,9 @@ public class P2PHostIdentify {
             }
             srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
             dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
+            if (srcAdd.equals("172.16.2.113")) {
+                return;
+            }
             context.write(new Text(srcAdd), new Text("" + time + " " + dstAdd + " " + flow));
         }
     }
@@ -152,6 +155,14 @@ public class P2PHostIdentify {
                 context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
             }
 
+            if (flowMap.size() == 0) {
+                dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/");
+                dir.delete();
+                dir = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/" + srcAdd + "/");
+                dir.delete();
+                return;
+            }
+
             for (Integer sequenceNumber : flowMap.keySet()) {
                 File sequenceFile = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/seq" + sequenceNumber + ".txt");
                 allWriter = new BufferedWriter(new FileWriter(sequenceFile, true));
@@ -163,12 +174,13 @@ public class P2PHostIdentify {
                             allWriter.write(".");
                         }
                     }
+                    allWriter.write("\n");
                 }
                 allWriter.write("\n");
 
                 allWriter.flush();
             }
-            allWriter.close();
+                allWriter.close();
             if (writer != null) writer.flush();
             //writer.close();
         }

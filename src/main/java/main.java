@@ -16,16 +16,16 @@ public class main {
             if (outputFolder.exists()) { // delete output folder
                 File[] files = outputFolder.listFiles();
                 for (File file : files) {
-                    file.delete();
+//                    file.delete();
                 }
             }
 
 //            P2PHostIdentify.run();
 
 //            System.out.println("Start sequence mining");
-            SequenceDatabase.run();
-
-            EventSequenceGenerate.run();
+//            SequenceDatabase.run();
+////
+//            EventSequenceGenerate.run();
 
             P2PManagementFlowDetect.run();
         } catch (Exception e) {

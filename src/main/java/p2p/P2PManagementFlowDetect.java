@@ -43,6 +43,7 @@ public class P2PManagementFlowDetect {
         BufferedWriter writer = null;
 
         for (File folder : new File(eventSequenceFolder).listFiles()) {
+            boolean isBonet = false;
 
 //            ArrayList<Pattern> patterns = new ArrayList<Pattern>();
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
@@ -105,15 +106,24 @@ public class P2PManagementFlowDetect {
             for (File fileByTimeWindow : folder.listFiles()) {
                 patternIDMap = buildPatternIDMap(fileByTimeWindow);
                 try {
+                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
+                    int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
+
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
+                    algo.setMinsup((int)(0.5 * numberOfBehaviours));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
-                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
+                    algo = new AlgoTKS();
+                    algo.setMinimumPatternLength(10);
+                    algo.setMinsup(10);
+                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
 
 //                    System.out.println("Number of patterns: " + patterns.size());
-                    for (PatternTKS pattern : behaviourPatterns) {
+                    while (!behaviourPatterns.isEmpty()) {
+                        PatternTKS pattern = behaviourPatterns.poll();
                         String[] parts = pattern.getPrefix().split(" -1 ");
 
                         int behaviourLength = 0;
@@ -121,25 +131,30 @@ public class P2PManagementFlowDetect {
                             behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
                         }
                         float behaviourSupport = (float) pattern.support / numberOfBehaviours;
-                        if (behaviourSupport < 0.5) {
-                            continue;
-                        }
+//                        if (behaviourSupport < 0.5) {
+//                            continue;
+//                        }
                         System.out.println("Behaviour length: " + behaviourLength);
 
                         boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
                         if (predictValue) {
                             predictValues.put(folder.getName(), true);
+                            isBonet = true;
                             break;
                         }
                         // TODO: modify to get result on certain criteria
-                    }
-                    if (!predictValues.containsKey(folder.getName())) {
-                        predictValues.put(folder.getName(), false);
                     }
 
                 } catch (Exception e) {
 
                 }
+                if (isBonet) {
+                    break;
+                }
+
+            }
+            if (!predictValues.containsKey(folder.getName())) {
+                predictValues.put(folder.getName(), false);
             }
         }
         System.out.println("Predict value ");

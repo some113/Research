@@ -196,7 +196,7 @@ public class AlgoTKS {
 //		System.out.println("k = " + this.k);
 
 		// set minsup = 1 (will be increased by the algorithm progressively)
-		minsup = 2;
+		minsup = Math.max(2, minsup);
 
 		candidateExplored = 0;
 

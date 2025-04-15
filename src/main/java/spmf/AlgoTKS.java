@@ -233,7 +233,7 @@ public class AlgoTKS {
 					continue;
 				}
 
-				String tokens[] = thisLine.split(" ");
+				String tokens[] = thisLine.split("#")[0].split(" ");
 
 				int[] transactionArray = new int[tokens.length];
 

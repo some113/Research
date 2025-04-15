@@ -1,9 +1,6 @@
 package p2p;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.Inet4Address;
 import java.util.*;
 
@@ -18,6 +15,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.yarn.webapp.hamlet2.HamletSpec;
 
 public class P2PHostIdentify {
     //P2P host detection threshold for detecting P2P flows
@@ -37,6 +35,8 @@ public class P2PHostIdentify {
 
     private static BufferedWriter writer = null;
 
+    private static int PACKET_CLUSTER_NUMBER = Config.PACKET_CLUSTER_NUMBER;
+
 
     //Mapper class for P2P host detection Map-Reduce Module
     public static class P2PHostDetectionMapper extends Mapper<Object, Text, Text, Text> {
@@ -51,10 +51,19 @@ public class P2PHostIdentify {
             }
             srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
             dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
-            if (srcAdd.equals("172.16.2.113")) {
+            if (srcAdd.equals("172.16.2.113") || srcAdd.equals("151.46.205.64") || srcAdd.equals("177.69.26.73") || srcAdd.equals("204.156.230.173") || srcAdd .equals("205.171.140.156")) {
                 return;
             }
             context.write(new Text(srcAdd), new Text("" + time + " " + dstAdd + " " + flow));
+        }
+    }
+
+    public static class FlowWithTime {
+        public String flow;
+        public float time;
+        public FlowWithTime(String flow, float time) {
+            this.flow = flow;
+            this.time = time;
         }
     }
 
@@ -67,7 +76,7 @@ public class P2PHostIdentify {
                 throws IOException, InterruptedException {
 //            System.out.println("Key value: " + key);
             Set<String> dstSet = new HashSet<String>();
-            HashMap<Integer, HashMap<String, ArrayList<String>>> flowMap = new HashMap<Integer, HashMap<String,ArrayList<String>>>(); //<prefix, flow>>
+            HashMap<Integer, HashMap<String, ArrayList<FlowWithTime>>> flowMap = new HashMap<Integer, HashMap<String,ArrayList<FlowWithTime>>>(); //<Sequence, <DstAdd, <Flows, Time>> >
 
             String srcAdd = key.toString();
             File dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/");
@@ -130,16 +139,18 @@ public class P2PHostIdentify {
                 }
                 writer = sequenceToMineWriterMap.get(srcAdd + i);
 
+//               printFlowByCluster(flow, writer);
                 writer.write(flow.replace(",", " -1 ") + " -1 -2\n");
                 writer.flush();
 
                 if (!flowMap.containsKey(i)) {
-                    flowMap.put(i, new HashMap<String, ArrayList<String>>());
+                    flowMap.put(i, new HashMap<String, ArrayList<FlowWithTime>>());
                 }
                 if (!flowMap.get(i).containsKey(dstAdd)) {
-                     flowMap.get(i).put(dstAdd, new ArrayList<String>());
+                     flowMap.get(i).put(dstAdd, new ArrayList<FlowWithTime>());
                 }
-                flowMap.get(i).get(dstAdd).add(flow);
+
+                flowMap.get(i).get(dstAdd).add(new FlowWithTime(flow, endTime));
 
 //                if (!sequenceToMineWriterMap.containsKey("all" + srcAdd)) {
 //                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
@@ -152,7 +163,7 @@ public class P2PHostIdentify {
 //                allWriter.write(dstAdd + " " + flow + "\n");
 //                allWriter.flush();
 
-                context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
+                context.write(new Text(srcAdd), new Text(endTime + " " + dstAdd + " " + flow));
             }
 
             if (flowMap.size() == 0) {
@@ -168,12 +179,18 @@ public class P2PHostIdentify {
                 allWriter = new BufferedWriter(new FileWriter(sequenceFile, true));
                 for (String dstAdd : flowMap.get(sequenceNumber).keySet()) {
                     allWriter.write(dstAdd + " ");
-                    for (String flow : flowMap.get(sequenceNumber).get(dstAdd)) {
-                        allWriter.write(flow);
-                        if (!flow.equals(flowMap.get(sequenceNumber).get(dstAdd).get(flowMap.get(sequenceNumber).get(dstAdd).size() - 1))) {
+
+                    String timeString = "";
+
+                    for (int i = 0; i < flowMap.get(sequenceNumber).get(dstAdd).size(); i++) {
+                        FlowWithTime flow = flowMap.get(sequenceNumber).get(dstAdd).get(i);
+//                        timeString += (int)flow.time + " ";
+                        allWriter.write(flow.flow + " " + (int) flow.time);
+                        if (i < flowMap.get(sequenceNumber).get(dstAdd).size() - 1) {
                             allWriter.write(".");
                         }
                     }
+//                    allWriter.write(" #" + timeString);
                     allWriter.write("\n");
                 }
                 allWriter.write("\n");
@@ -184,6 +201,30 @@ public class P2PHostIdentify {
             if (writer != null) writer.flush();
             //writer.close();
         }
+    }
+
+    static void printFlowByCluster(String flow, Writer writer) throws IOException {
+
+        String[] parts = flow.split(",");
+        HashSet<String> clusterSet = new HashSet<String>();
+        for (int i = 0;i < parts.length; i++) {
+            clusterSet.add(parts[i]);
+            if (i % PACKET_CLUSTER_NUMBER == PACKET_CLUSTER_NUMBER - 1) {
+                for (String packet : clusterSet) {
+                    writer.write(packet + " ");
+                }
+                writer.write("-1 ");
+                clusterSet.clear();
+            }
+        }
+        if (parts.length % PACKET_CLUSTER_NUMBER != 0) {
+            for (String packet : clusterSet) {
+                writer.write(packet + " ");
+            }
+            writer.write("-1 ");
+        }
+        writer.write("-2\n");
+        writer.flush();
     }
 
 

@@ -1,6 +1,7 @@
 package Event;
 
 import org.apache.hadoop.util.hash.Hash;
+import org.apache.kerby.kerberos.kerb.type.fast.PaAuthnEntry;
 import p2p.P2PManagementFlowDetect;
 
 import java.io.*;
@@ -87,6 +88,15 @@ public class EventSequenceGenerate {
 //                .collect(Collectors.toList());
 //    }
 
+    public static class PatternIDWithTime {
+        public int patternID;
+        public int time;
+        public PatternIDWithTime(int patternID, int time) {
+            this.patternID = patternID;
+            this.time = time;
+        }
+    }
+
     static ArrayList<EventSequenceGenerate.Pattern> eventPatternMapping(File eventFile) {
         ArrayList<EventSequenceGenerate.Pattern> patterns = new ArrayList<>();
         BufferedReader br = null;
@@ -131,7 +141,7 @@ public class EventSequenceGenerate {
 
 
         for (File hostSequenceFolder : sequenceFolder.listFiles()) {
-            HashMap<String, ArrayList<Integer>> evenSequenceMap = new HashMap<String, ArrayList<Integer>>();
+            HashMap<String, ArrayList<PatternIDWithTime>> evenSequenceMap = new HashMap<String, ArrayList<PatternIDWithTime>>();
             HashMap<String, Pattern> patternMap = new HashMap<String, Pattern>();
             TreeSet<EventSequenceGenerate.Pattern> eventSet = new TreeSet<EventSequenceGenerate.Pattern>();
             String host = hostSequenceFolder.getName();
@@ -189,10 +199,12 @@ public class EventSequenceGenerate {
                     br = new BufferedReader(new FileReader(sequenceFile.getAbsolutePath()));
                     String line = br.readLine();
                     while (line != null && !line.isEmpty()) {
-                        String[] parts = line.split(" ");
+                        String[] parts = line.split(" ", 2);
                         String dstAdd = parts[0], flow = parts[1];
+                        parts = flow.split("\\.");
 
-                        for (String flowUnit : flow.split("\\.")) {
+                        for (int i = 0; i < parts.length; i++) {
+                            String flowUnit = parts[i].split(" ")[0], time = parts[i].split(" ")[1];
                             cnt = 1;
                             for (EventSequenceGenerate.Pattern pattern : eventSet) {
                                 java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern.pattern);
@@ -200,10 +212,10 @@ public class EventSequenceGenerate {
 
                                 if (m.find()) {
                                     if (evenSequenceMap.containsKey(dstAdd)) {
-                                        evenSequenceMap.get(dstAdd).add(cnt);
+                                        evenSequenceMap.get(dstAdd).add(new PatternIDWithTime(cnt, Integer.parseInt(time)));
                                     } else {
-                                        ArrayList<Integer> list = new ArrayList<Integer>();
-                                        list.add(cnt);
+                                        ArrayList<PatternIDWithTime> list = new ArrayList<PatternIDWithTime>();
+                                        list.add(new PatternIDWithTime(cnt, Integer.parseInt(time)));
                                         evenSequenceMap.put(dstAdd, list);
                                     }
                                     break;
@@ -245,13 +257,17 @@ public class EventSequenceGenerate {
         return patternMap;
     }
 
-    static void printFromEventSequenceMap(HashMap<String, ArrayList<Integer>> eventSequenceMap, BufferedWriter writer) {
+    static void printFromEventSequenceMap(HashMap<String, ArrayList<PatternIDWithTime>> eventSequenceMap, BufferedWriter writer) {
         try {
-            for (Map.Entry<String, ArrayList<Integer>> entry : eventSequenceMap.entrySet()) {
+            for (Map.Entry<String, ArrayList<PatternIDWithTime>> entry : eventSequenceMap.entrySet()) {
                 for (int i = 0; i < entry.getValue().size(); i++) {
-                    writer.write(entry.getValue().get(i) + " -1 ");
+                    writer.write(entry.getValue().get(i).patternID + " -1 ");
                 }
-                writer.write("-2\n");
+                writer.write("-2 #");
+                for (int i = 0; i < entry.getValue().size(); i++) {
+                    writer.write(entry.getValue().get(i).time + " ");
+                }
+                writer.write("\n");
             }
             writer.flush();
 //            writer.close();

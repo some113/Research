@@ -43,68 +43,26 @@ public class P2PManagementFlowDetect {
         BufferedWriter writer = null;
 
         for (File folder : new File(eventSequenceFolder).listFiles()) {
+            File timeIntervalFolder = new File(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + folder.getName());
+            if (!timeIntervalFolder.exists()) {
+                timeIntervalFolder.mkdir();
+            }
+
             boolean isBonet = false;
 
 //            ArrayList<Pattern> patterns = new ArrayList<Pattern>();
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
 //            System.out.println("Mining sequences for: " + folder.getName());
-            {
-////            patterns = patternMapping(folder);
-//
-//
-//            for (int i = patterns.size() - 1; i >= 0; i--) {
-////                System.out.println(patterns.get(i).pattern + " " + patterns.get(i).sup + " " + patterns.get(i).length);
-//                patternIDMap.put(i, patterns.get(i));
-//            }
-//
-//            try {
-//                // eventSequence: chuỗi danh sách index event trong patterns
-////                HashMap<String, ArrayList<Integer>> eventSequence = new HashMap<String, ArrayList<Integer>>();
-////                br = new BufferedReader(new FileReader(folder.getAbsolutePath() + "/all.txt"));
-////                String line;
-////
-////                writer = new BufferedWriter(new FileWriter(folder.getAbsolutePath() + "/behaviour.txt"));
-////                // Create event sequence while mapping with destIP
-////                // No longer need if already mapping in previous step
-////                // TODO: handle no matching flows
-////                while ((line = br.readLine()) != null) {
-////                    String[] parts = line.split("\\.");
-//////                    String dstAdd = parts[0], flow = parts[1];
-////                    boolean matched = false;
-////                    for (String flow : parts) {
-////                        for (int i = 0; i < patterns.size(); i++) {
-////                            if (flow.matches(patterns.get(i).pattern)) {
-////                                writer.write(i + " -1 ");
-////                                matched = true;
-////                                break;
-////                            }
-////                        }
-////                    }
-////                    writer.write(matched ? "-2\n" : "");
-////                }
-//
-//
-////                for (Map.Entry<String, ArrayList<Integer>> entry : eventSequence.entrySet()) {
-////                    String dstAdd = entry.getKey();
-////                    System.out.println("Event sequence database of: " + dstAdd);
-//////                    writer.write(dstAdd + " ");
-////                    ArrayList<Integer> events = entry.getValue();
-////                    for (int i = 0; i < events.size(); i++) {
-////                        System.out.printf("%d ", events.get(i));
-////                        writer.write(events.get(i) + " -1 ");
-////                    }
-////                    writer.write("-2\n");
-////                    System.out.println();
-////                }
-//                writer.flush();
-//            }  catch (Exception e) {
-//                System.out.println("Error when mining behaviour: " + e.getMessage());
-//                e.printStackTrace();
-//            }
-            }
 
             for (File fileByTimeWindow : folder.listFiles()) {
                 patternIDMap = buildPatternIDMap(fileByTimeWindow);
+                File timeIntervalFile = new File(timeIntervalFolder.getAbsolutePath() + "/" + fileByTimeWindow.getName());
+                try {
+                    BufferedWriter timeIntervalWriter = new BufferedWriter(new FileWriter(timeIntervalFile));
+                } catch (IOException e) {
+                    System.out.println("Error when creating time interval file: " + e.getMessage());
+                    e.printStackTrace();
+                }
                 try {
                     int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
                     int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
@@ -112,7 +70,7 @@ public class P2PManagementFlowDetect {
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
-                    algo.setMinsup((int)(0.5 * numberOfBehaviours));
+                    algo.setMinsup(Math.max(10, (int)(0.5 * numberOfBehaviours)));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
                     algo = new AlgoTKS();
@@ -125,6 +83,8 @@ public class P2PManagementFlowDetect {
                     while (!behaviourPatterns.isEmpty()) {
                         PatternTKS pattern = behaviourPatterns.poll();
                         String[] parts = pattern.getPrefix().split(" -1 ");
+
+                        getIntervalOfBehaviours(pattern, fileByTimeWindow);
 
                         int behaviourLength = 0;
                         for (String part : parts) {
@@ -259,7 +219,79 @@ public class P2PManagementFlowDetect {
         return count;
     }
 
+    static void getIntervalOfBehaviours(PatternTKS pattern, File eventSequenceFile) {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(eventSequenceFile.getAbsolutePath()));
+
+            String host = eventSequenceFile.getParentFile().getName();
+//            File timeIntervalFile = new File(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + host + "/" + eventSequenceFile.getName());
+//            timeIntervalFile.createNewFile();
+            BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + host + "/" + eventSequenceFile.getName(), true));
+            String line = br.readLine();
+            while (line != null) {
+                if (line.startsWith("#")) {
+                    line = br.readLine();
+                    continue;
+                }
+                String[] parts = line.split(" -1 ");
+                ArrayList<String> timeIntervals = matchBySlideWindowAndGetTimeIntervals(pattern, line);
+                if (timeIntervals != null) {
+                    writer.write("Match for pattern: " + pattern.getPrefix() + "\n");
+                    for (String timeInterval : timeIntervals) {
+                        writer.write(timeInterval + " ");
+                    }
+                    writer.write("\n");
+                } else {
+//                    System.out.println("No match");
+                }
+                line = br.readLine();
+            }
+            writer.flush();
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Error when getting interval of behaviours: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    static ArrayList<String> matchBySlideWindowAndGetTimeIntervals(PatternTKS behaviourPattern, String line) {
+        ArrayList<String> timeIntervalResult = new ArrayList<>();
+        String[] lineParts = line.split("#"), behaviours = behaviourPattern.getPrefix().split(" -1 "),
+                timeParts = lineParts[1].split(" "), parts = lineParts[0].split(" -1 ");
+        int behaviourI = 0, lineI = 0;
+        for (;lineI < parts.length; lineI++) {
+
+            String behaviour = behaviours[behaviourI];
+            if (behaviour.equals(parts[lineI])) {
+                if (timeIntervalResult.size() > 0) {
+                    Integer interval = Integer.parseInt(timeParts[lineI]) - Integer.parseInt(timeIntervalResult.get(timeIntervalResult.size() - 1));
+                    timeIntervalResult.set(timeIntervalResult.size() - 1, interval.toString());
+                    timeIntervalResult.add(timeParts[lineI]);
+                } else {
+                    timeIntervalResult.add(timeParts[lineI]);
+                }
+                behaviourI++;
+                if (behaviourI >= behaviours.length) {
+                    return timeIntervalResult;
+                }
+            }
+            if (behaviourI >= behaviours.length) {
+                return timeIntervalResult;
+            }
+        }
+        if (behaviourI >= behaviours.length) {
+            return timeIntervalResult;
+        }
+        return null;
+    }
+
     public static void  run() throws IllegalArgumentException, IOException {
+        File timeIntervalFile = new File(System.getProperty("user.dir") + "/OutputData/TimeIntervals");
+        if (!timeIntervalFile.exists()) {
+            timeIntervalFile.mkdir();
+        }
+
+
         readBotnetList();
 
         frequentBehaviourMining();

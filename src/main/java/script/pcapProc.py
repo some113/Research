@@ -62,7 +62,7 @@ def process_file(input_file_path, output_file_path):
 
 # Directory containing input files
 root_dir = os.path.dirname(os.path.abspath(__file__)) + "\\..\\..\\..\\..\\"
-input_folder = root_dir + "InputData\\Flow"
+input_folder = root_dir + "tempFolderForPcapProcess"
 output_folder = "C:\\Newfolder\\Research\\InputData\\Flow" #root_dir + "InputData\\Flow"
 
 # Process all files in the input folder

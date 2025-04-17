@@ -64,7 +64,7 @@ public class SequenceDatabase {
                     try {
                         AlgoTKS algo = new AlgoTKS();
                         algo.setMinimumPatternLength(1);
-                        algo.setMaximumPatternLength(20);
+                        algo.setMaximumPatternLength(8);
                         // TODO: adjust
 //                        algo.setMinsup((int)(0.2 * lines));
                         PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(seqFile.getAbsolutePath(), output, k);

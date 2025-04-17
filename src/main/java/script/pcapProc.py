@@ -19,6 +19,7 @@ def process_file(input_file_path, output_file_path):
                 
                 try:
                     time = float(data[0])
+                    print(time)
                 except ValueError:
                     continue
                 

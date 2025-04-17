@@ -60,8 +60,8 @@ public class P2PHostIdentify {
 
     public static class FlowWithTime {
         public String flow;
-        public float time;
-        public FlowWithTime(String flow, float time) {
+        public int time;
+        public FlowWithTime(String flow, int time) {
             this.flow = flow;
             this.time = time;
         }
@@ -114,10 +114,24 @@ public class P2PHostIdentify {
 
             dir.mkdir();
 
+            List<Text> valueList = new ArrayList<Text>();
             for (Text val : values) {
+                valueList.add(new Text(val));
+            }
+//            values.forEach(valueList::add);
+            valueList.sort(new Comparator<Text>() {
+                @Override
+                public int compare(Text o1, Text o2) {
+                    int endtime1 = Integer.parseInt(o1.toString().substring(0, o1.toString().indexOf(" ")).substring(0, o1.toString().indexOf(".")));
+                    int endtime2 = Integer.parseInt(o2.toString().substring(0, o2.toString().indexOf(" ")).substring(0, o2.toString().indexOf(".")));
+                    return endtime1 - endtime2;
+                }
+            });
+
+            for (Text val : valueList) {
 
                 String[] parts = val.toString().split(" ");
-                float endTime = Float.parseFloat(parts[0]);
+                int endTime = Integer.parseInt(parts[0].substring(0, parts[0].indexOf(".")));
                 String dstAdd = parts[1], flow = parts[2], sizes[] = flow.split(",");
                 if (sizes.length < NumberOfPacketThread) {
                     continue;
@@ -139,9 +153,9 @@ public class P2PHostIdentify {
                 }
                 writer = sequenceToMineWriterMap.get(srcAdd + i);
 
-//               printFlowByCluster(flow, writer);
-                writer.write(flow.replace(",", " -1 ") + " -1 -2\n");
-                writer.flush();
+               printFlowByCluster(flow, writer);
+//                writer.write(flow.replace(",", " -1 ") + " -1 -2\n");
+//                writer.flush();
 
                 if (!flowMap.containsKey(i)) {
                     flowMap.put(i, new HashMap<String, ArrayList<FlowWithTime>>());

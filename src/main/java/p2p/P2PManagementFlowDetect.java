@@ -36,7 +36,9 @@ public class P2PManagementFlowDetect {
 
     static HashMap<String, ArrayList<String>> resultMap = new HashMap<String,  ArrayList<String>>();
 
+    static int BEHAVIOUR_DD_THREASHOLD = Config.BEHAVIOUR_DD_THRESHOLD;
 
+    static int START_TIME_WINDOW = Config.START_TIME_WINDOW;
 
     public static void frequentBehaviourMining() {
         BufferedReader br = null;
@@ -65,12 +67,12 @@ public class P2PManagementFlowDetect {
                 }
                 try {
                     int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
-                    int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
+                    int minSupValue = Math.max((int)(0.5 * numberOfBehaviours), 10);
 
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
-                    algo.setMinsup(Math.max(10, (int)(0.5 * numberOfBehaviours)));
+                    algo.setMinsup(Math.max(10, (int)(0.4 * numberOfBehaviours)));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
                     algo = new AlgoTKS();
@@ -84,7 +86,6 @@ public class P2PManagementFlowDetect {
                         PatternTKS pattern = behaviourPatterns.poll();
                         String[] parts = pattern.getPrefix().split(" -1 ");
 
-                        getIntervalOfBehaviours(pattern, fileByTimeWindow);
 
                         int behaviourLength = 0;
                         for (String part : parts) {
@@ -96,13 +97,18 @@ public class P2PManagementFlowDetect {
 //                        }
                         System.out.println("Behaviour length: " + behaviourLength);
 
-                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
-                        if (predictValue) {
+//                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
+//                        if (predictValue) {
+//                            predictValues.put(folder.getName(), true);
+//                            isBonet = true;
+//                            break;
+//                        }
+
+                        if (behaviourLength >= 3 && behaviourLength * getDDOfBehaviours(pattern, fileByTimeWindow) >= 300) {
                             predictValues.put(folder.getName(), true);
                             isBonet = true;
                             break;
-                        }
-                        // TODO: modify to get result on certain criteria
+                        };
                     }
 
                 } catch (Exception e) {
@@ -219,13 +225,19 @@ public class P2PManagementFlowDetect {
         return count;
     }
 
-    static void getIntervalOfBehaviours(PatternTKS pattern, File eventSequenceFile) {
+    /**
+     * Temporaryly return number of diversity
+     * @param pattern
+     * @param eventSequenceFile
+     */
+    static int getDDOfBehaviours(PatternTKS pattern, File eventSequenceFile) {
         try {
             BufferedReader br = new BufferedReader(new FileReader(eventSequenceFile.getAbsolutePath()));
+            int cnt = 0;
 
             String host = eventSequenceFile.getParentFile().getName();
-//            File timeIntervalFile = new File(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + host + "/" + eventSequenceFile.getName());
-//            timeIntervalFile.createNewFile();
+            System.out.println("At host: " + host + "\nStart time: ");
+            ArrayList<Integer> startTimes = new ArrayList<Integer>();
             BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + host + "/" + eventSequenceFile.getName(), true));
             String line = br.readLine();
             while (line != null) {
@@ -234,13 +246,17 @@ public class P2PManagementFlowDetect {
                     continue;
                 }
                 String[] parts = line.split(" -1 ");
-                ArrayList<String> timeIntervals = matchBySlideWindowAndGetTimeIntervals(pattern, line);
+                ArrayList<Integer> timeIntervals = matchBySlideWindowAndGetTimeIntervals(pattern, line);
                 if (timeIntervals != null) {
                     writer.write("Match for pattern: " + pattern.getPrefix() + "\n");
-                    for (String timeInterval : timeIntervals) {
+                    for (Integer timeInterval : timeIntervals) {
                         writer.write(timeInterval + " ");
                     }
                     writer.write("\n");
+                    cnt++;
+                    startTimes.add(timeIntervals.get(0));
+                    System.out.print(timeIntervals.get(0) + " ");
+
                 } else {
 //                    System.out.println("No match");
                 }
@@ -248,27 +264,39 @@ public class P2PManagementFlowDetect {
             }
             writer.flush();
             writer.close();
+
+            System.out.println("\nNumber of match for pattern: " + pattern.getPrefix() + " is: " + cnt + " with start time: ");
+            for (Integer startTime : startTimes) {
+                System.out.print(startTime + " ");
+            }
+            System.out.println();
+
+            int DD = getDDFromStartTimes(startTimes, START_TIME_WINDOW);
+            System.out.println("DD of pattern: " + pattern.getPrefix() + " is: " + DD);
+            return DD;
         } catch (Exception e) {
             System.out.println("Error when getting interval of behaviours: " + e.getMessage());
             e.printStackTrace();
         }
+        return 0;
     }
 
-    static ArrayList<String> matchBySlideWindowAndGetTimeIntervals(PatternTKS behaviourPattern, String line) {
-        ArrayList<String> timeIntervalResult = new ArrayList<>();
+    static ArrayList<Integer> matchBySlideWindowAndGetTimeIntervals(PatternTKS behaviourPattern, String line) {
+        ArrayList<Integer> timeIntervalResult = new ArrayList<>();
         String[] lineParts = line.split("#"), behaviours = behaviourPattern.getPrefix().split(" -1 "),
-                timeParts = lineParts[1].split(" "), parts = lineParts[0].split(" -1 ");
-        int behaviourI = 0, lineI = 0;
+                timeParts = lineParts[1].split(" "), parts = lineParts[0].substring(0, lineParts[0].indexOf("-2")).split(" -1 ");
+        int behaviourI = 0, lineI = 0, lastTime = 0;
         for (;lineI < parts.length; lineI++) {
 
             String behaviour = behaviours[behaviourI];
             if (behaviour.equals(parts[lineI])) {
                 if (timeIntervalResult.size() > 0) {
-                    Integer interval = Integer.parseInt(timeParts[lineI]) - Integer.parseInt(timeIntervalResult.get(timeIntervalResult.size() - 1));
-                    timeIntervalResult.set(timeIntervalResult.size() - 1, interval.toString());
-                    timeIntervalResult.add(timeParts[lineI]);
+                    Integer interval = Integer.parseInt(timeParts[lineI]) - lastTime;
+                    lastTime = Integer.parseInt(timeParts[lineI]);
+                    timeIntervalResult.add(interval);
                 } else {
-                    timeIntervalResult.add(timeParts[lineI]);
+                    lastTime = Integer.parseInt(timeParts[lineI]);
+                    timeIntervalResult.add(Integer.parseInt(timeParts[lineI]));
                 }
                 behaviourI++;
                 if (behaviourI >= behaviours.length) {
@@ -283,6 +311,23 @@ public class P2PManagementFlowDetect {
             return timeIntervalResult;
         }
         return null;
+    }
+
+    static int getDDFromStartTimes(ArrayList<Integer> startTimes, int timeWindow) {
+        int res = 0, cnt = 0, i = 0, j = 0;
+        while (j < startTimes.size()) {
+            if (startTimes.get(j) - startTimes.get(i) <= timeWindow) {
+                cnt++;
+            } else {
+                while (startTimes.get(j) - startTimes.get(i) > timeWindow) {
+                    i++;
+                    cnt--;
+                }
+            }
+            j++;
+            res = Math.max(res, cnt);
+        }
+        return res;
     }
 
     public static void  run() throws IllegalArgumentException, IOException {

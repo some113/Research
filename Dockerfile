@@ -6,12 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update the package repository and install OpenJDK and Maven
 RUN apt-get update && \
-    apt-get install -y openjdk-21-jdk maven && \
+    apt-get install -y openjdk-11-jdk maven && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Set JAVA_HOME
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 # Update PATH
 ENV PATH="$JAVA_HOME/bin:$PATH"

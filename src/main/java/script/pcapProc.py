@@ -19,7 +19,7 @@ def process_file(input_file_path, output_file_path):
                 
                 try:
                     time = float(data[0])
-                    print(time)
+                    #print(time)
                 except ValueError:
                     continue
                 
@@ -41,7 +41,7 @@ def process_file(input_file_path, output_file_path):
                 if key in startTimeDict:
                     if time - startTimeDict[key] > TIME_GAP:
                         with open(output_file_path, 'a') as outfile:
-                            outfile.write(f"{time} {key} {','.join(flowDict[key])}\n")
+                            outfile.write(f"{startTimeDict[key]} {key} {','.join(flowDict[key])}\n")
                             # print(f"{time} {key} {','.join(flowDict[key])}")
                         startTimeDict[key] = time
                         flowDict[key] = [size]

@@ -72,16 +72,17 @@ public class P2PManagementFlowDetect {
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
-                    algo.setMinsup(Math.max(10, (int)(0.4 * numberOfBehaviours)));
+//                    algo.setMinsup(10);//, (int)(0.2 * numberOfBehaviours)));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
-                    algo = new AlgoTKS();
-                    algo.setMinimumPatternLength(10);
-                    algo.setMinsup(10);
-                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
-                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
+//                    algo = new AlgoTKS();
+//                    algo.setMinimumPatternLength(10);
+//                    algo.setMinsup(10);
+//                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+//                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
 
 //                    System.out.println("Number of patterns: " + patterns.size());
+                    ArrayList<Integer> DDs = new ArrayList<Integer>();
                     while (!behaviourPatterns.isEmpty()) {
                         PatternTKS pattern = behaviourPatterns.poll();
                         String[] parts = pattern.getPrefix().split(" -1 ");
@@ -92,9 +93,9 @@ public class P2PManagementFlowDetect {
                             behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
                         }
                         float behaviourSupport = (float) pattern.support / numberOfBehaviours;
-//                        if (behaviourSupport < 0.5) {
-//                            continue;
-//                        }
+                        if (behaviourSupport < 0.2) {
+                            continue;
+                        }
                         System.out.println("Behaviour length: " + behaviourLength);
 
 //                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
@@ -103,13 +104,22 @@ public class P2PManagementFlowDetect {
 //                            isBonet = true;
 //                            break;
 //                        }
-
-                        if (behaviourLength >= 3 && behaviourLength * getDDOfBehaviours(pattern, fileByTimeWindow) >= 300) {
+                        int behaviourDD = getDDOfBehaviours(pattern, fileByTimeWindow);
+                        DDs.add(behaviourDD);
+                        if (behaviourLength >= 3 &&   behaviourDD >= 30) {
                             predictValues.put(folder.getName(), true);
                             isBonet = true;
                             break;
                         };
                     }
+                    if (DDs.isEmpty()) {
+                        break;
+                    }
+                    System.out.print("DDs of " + folder.getName() + ": ");
+                    for (Integer dd : DDs) {
+                        System.out.print(dd + " ");
+                    }
+                    System.out.println();
 
                 } catch (Exception e) {
 
@@ -236,10 +246,11 @@ public class P2PManagementFlowDetect {
             int cnt = 0;
 
             String host = eventSequenceFile.getParentFile().getName();
-            System.out.println("At host: " + host + "\nStart time: ");
+//            System.out.println("At host: " + host + "\nStart time: ");
             ArrayList<Integer> startTimes = new ArrayList<Integer>();
             BufferedWriter writer = new BufferedWriter(new FileWriter(System.getProperty("user.dir") + "/OutputData/TimeIntervals/" + host + "/" + eventSequenceFile.getName(), true));
             String line = br.readLine();
+            writer.write("Match for pattern: " + pattern.getPrefix() + "\n");
             while (line != null) {
                 if (line.startsWith("#")) {
                     line = br.readLine();
@@ -248,14 +259,13 @@ public class P2PManagementFlowDetect {
                 String[] parts = line.split(" -1 ");
                 ArrayList<Integer> timeIntervals = matchBySlideWindowAndGetTimeIntervals(pattern, line);
                 if (timeIntervals != null) {
-                    writer.write("Match for pattern: " + pattern.getPrefix() + "\n");
                     for (Integer timeInterval : timeIntervals) {
                         writer.write(timeInterval + " ");
                     }
                     writer.write("\n");
                     cnt++;
                     startTimes.add(timeIntervals.get(0));
-                    System.out.print(timeIntervals.get(0) + " ");
+//                    System.out.print(timeIntervals.get(0) + " ");
 
                 } else {
 //                    System.out.println("No match");
@@ -265,14 +275,14 @@ public class P2PManagementFlowDetect {
             writer.flush();
             writer.close();
 
-            System.out.println("\nNumber of match for pattern: " + pattern.getPrefix() + " is: " + cnt + " with start time: ");
-            for (Integer startTime : startTimes) {
-                System.out.print(startTime + " ");
-            }
-            System.out.println();
+//            System.out.println("\nNumber of match for pattern: " + pattern.getPrefix() + " is: " + cnt + " with start time: ");
+//            for (Integer startTime : startTimes) {
+//                System.out.print(startTime + " ");
+//            }
+//            System.out.println();
 
             int DD = getDDFromStartTimes(startTimes, START_TIME_WINDOW);
-            System.out.println("DD of pattern: " + pattern.getPrefix() + " is: " + DD);
+//            System.out.println("DD of pattern: " + pattern.getPrefix() + " is: " + DD);
             return DD;
         } catch (Exception e) {
             System.out.println("Error when getting interval of behaviours: " + e.getMessage());
@@ -291,7 +301,7 @@ public class P2PManagementFlowDetect {
             String behaviour = behaviours[behaviourI];
             if (behaviour.equals(parts[lineI])) {
                 if (timeIntervalResult.size() > 0) {
-                    Integer interval = Integer.parseInt(timeParts[lineI]) - lastTime;
+                    Integer interval = Integer.parseInt(timeParts[lineI]) - timeIntervalResult.get(0);
                     lastTime = Integer.parseInt(timeParts[lineI]);
                     timeIntervalResult.add(interval);
                 } else {

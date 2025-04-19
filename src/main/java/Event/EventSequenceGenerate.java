@@ -104,7 +104,10 @@ public class EventSequenceGenerate {
                 String[] parts = line.split(" #SUP: ");
                 float sup = Float.parseFloat(parts[1]);
                 String[] sizes = parts[0].split(" -1 ");
-                int cnt = parts[0].split(" -1 ").length;
+                int cnt = 0;
+                for (String size : sizes) {
+                    cnt += size.split(" ").length;
+                }
                 int totalSize = 0;
 //                for ( String size : sizes) {
 //                    totalSize += Integer.parseInt(size);

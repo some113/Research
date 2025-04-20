@@ -72,14 +72,14 @@ public class P2PManagementFlowDetect {
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
-//                    algo.setMinsup(10);//, (int)(0.2 * numberOfBehaviours)));
+                    algo.setMinsup(10);//, (int)(0.2 * numberOfBehaviours)));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
-//                    algo = new AlgoTKS();
-//                    algo.setMinimumPatternLength(10);
-//                    algo.setMinsup(10);
-//                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
-//                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
+                    algo = new AlgoTKS();
+                    algo.setMinimumPatternLength(10);
+                    algo.setMinsup(10);
+                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
 
 //                    System.out.println("Number of patterns: " + patterns.size());
                     ArrayList<Integer> DDs = new ArrayList<Integer>();
@@ -96,14 +96,14 @@ public class P2PManagementFlowDetect {
                         if (behaviourSupport < 0.2) {
                             continue;
                         }
-                        System.out.println("Behaviour length: " + behaviourLength);
+//                        System.out.println("Behaviour length: " + behaviourLength);
 
-//                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
-//                        if (predictValue) {
-//                            predictValues.put(folder.getName(), true);
-//                            isBonet = true;
-//                            break;
-//                        }
+                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
+                        if (predictValue) {
+                            predictValues.put(folder.getName(), true);
+                            isBonet = true;
+                            break;
+                        }
                         int behaviourDD = getDDOfBehaviours(pattern, fileByTimeWindow);
                         DDs.add(behaviourDD);
                         if (behaviourLength >= 3 &&   behaviourDD >= 30) {

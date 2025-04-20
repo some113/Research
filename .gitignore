@@ -2,6 +2,8 @@
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+target/
+.idea/*
 
 ### Eclipse ###
 .apt_generated
@@ -33,3 +35,9 @@ bin/
 
 *.java~
 *.class
+
+tempFolderForPcapProcess/
+src/main/java/script/*
+!src/main/java/script/*.py
+
+Lasttime result/

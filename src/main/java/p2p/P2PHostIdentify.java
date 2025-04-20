@@ -51,7 +51,7 @@ public class P2PHostIdentify {
             }
             srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
             dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
-            if (srcAdd.equals("172.16.2.113") || srcAdd.equals("151.46.205.64") || srcAdd.equals("177.69.26.73") || srcAdd.equals("204.156.230.173") || srcAdd .equals("205.171.140.156")) {
+            if (srcAdd.equals("172.16.2.113") || srcAdd.equals("151.46.205.64") || srcAdd.equals("177.69.26.73") || srcAdd.equals("204.156.230.173") || srcAdd .equals("205.171.140.156") || srcAdd.equals("172.16.2.2")) {
                 return;
             }
             context.write(new Text(srcAdd), new Text("" + time + " " + dstAdd + " " + flow));

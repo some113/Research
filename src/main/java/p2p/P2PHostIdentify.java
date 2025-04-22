@@ -49,12 +49,18 @@ public class P2PHostIdentify {
             if (srcAdd.contains(":") || dstAdd.contains(":")) {
                 return;
             }
-            srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
+//            srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
             dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
             if (srcAdd.equals("172.16.2.113")) {
                 return;
             }
-            context.write(new Text(srcAdd), new Text("" + time + " " + dstAdd + " " + flow));
+            if (!(srcAdd.startsWith("10.") || srcAdd.startsWith("172.") || srcAdd.startsWith("192.") || srcAdd.startsWith("147."))
+                && (dstAdd.startsWith("10.") || dstAdd.startsWith("172.") || dstAdd.startsWith("192.") || dstAdd.startsWith("147."))) {
+                context.write(new Text(dstAdd), new Text("-1 " + time + " " + dstAdd + " " + flow));
+                return;
+            }
+            context.write(new Text(srcAdd.substring(0, srcAdd.lastIndexOf("."))),
+                    new Text(srcAdd.substring(srcAdd.lastIndexOf(".") + 1)+ " " + time + " " + dstAdd + " " + flow));
         }
     }
 
@@ -67,6 +73,8 @@ public class P2PHostIdentify {
                 throws IOException, InterruptedException {
 //            System.out.println("Key value: " + key);
             Set<String> dstSet = new HashSet<String>();
+//            HashSet<Integer> removedPort = new HashSet<Integer>();
+
             HashMap<Integer, HashMap<String, ArrayList<String>>> flowMap = new HashMap<Integer, HashMap<String,ArrayList<String>>>(); //<prefix, flow>>
 
             String srcAdd = key.toString();
@@ -79,16 +87,15 @@ public class P2PHostIdentify {
                 dir.mkdir();
             }
 
+            ArrayList<Text> cachedValues = new ArrayList<Text>();
             for (Text val : values) {
-                String[] parts = val.toString().split(" ")[1].split("\\.");
-                String prefix = parts[0] + "." + parts[1];
 
+                String[] parts = val.toString().split(" ")[2].split("\\.");
+                String prefix = parts[0] + "." + parts[1];
                 if (!dstSet.contains(prefix)) {
                     dstSet.add(prefix);
                 }
-                if (dstSet.size() >= p2PHostDetectionThreshold) {
-                    break;
-                }
+                cachedValues.add(new Text(val));
             }
 
             if (dstSet.size() < p2PHostDetectionThreshold) {
@@ -105,11 +112,13 @@ public class P2PHostIdentify {
 
             dir.mkdir();
 
-            for (Text val : values) {
 
+            for (Text val : cachedValues) {
                 String[] parts = val.toString().split(" ");
-                float endTime = Float.parseFloat(parts[0]);
-                String dstAdd = parts[1], flow = parts[2], sizes[] = flow.split(",");
+                int srcPort = Integer.parseInt(parts[0]);
+                float endTime = Float.parseFloat(parts[1]);
+                String dstAdd = parts[2], flow = parts[3], sizes[] = flow.split(",");
+
                 if (sizes.length < NumberOfPacketThread) {
                     continue;
                 }
@@ -137,7 +146,7 @@ public class P2PHostIdentify {
                     flowMap.put(i, new HashMap<String, ArrayList<String>>());
                 }
                 if (!flowMap.get(i).containsKey(dstAdd)) {
-                     flowMap.get(i).put(dstAdd, new ArrayList<String>());
+                    flowMap.get(i).put(dstAdd, new ArrayList<String>());
                 }
                 flowMap.get(i).get(dstAdd).add(flow);
 
@@ -180,7 +189,7 @@ public class P2PHostIdentify {
 
                 allWriter.flush();
             }
-                allWriter.close();
+            allWriter.close();
             if (writer != null) writer.flush();
             //writer.close();
         }
@@ -227,8 +236,8 @@ public class P2PHostIdentify {
             if (jobCtrl.allFinished()) {
                 System.out.println(jobCtrl.getSuccessfulJobList());
                 jobCtrl.stop();
-                writer.flush();
-                writer.close();
+//                writer.flush();
+//                writer.close();
                 break;
             }
         }

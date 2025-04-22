@@ -128,8 +128,6 @@ public class EventSequenceGenerate {
             eventSequenceFolder.mkdir();
         }
 
-
-
         for (File hostSequenceFolder : sequenceFolder.listFiles()) {
             HashMap<String, ArrayList<Integer>> evenSequenceMap = new HashMap<String, ArrayList<Integer>>();
             HashMap<String, Pattern> patternMap = new HashMap<String, Pattern>();
@@ -188,6 +186,7 @@ public class EventSequenceGenerate {
                 try {
                     br = new BufferedReader(new FileReader(sequenceFile.getAbsolutePath()));
                     String line = br.readLine();
+                    boolean atLeastOne = false;
                     while (line != null && !line.isEmpty()) {
                         String[] parts = line.split(" ");
                         String dstAdd = parts[0], flow = parts[1];
@@ -199,17 +198,24 @@ public class EventSequenceGenerate {
                                 Matcher m = p.matcher(flowUnit);
 
                                 if (m.find()) {
-                                    if (evenSequenceMap.containsKey(dstAdd)) {
-                                        evenSequenceMap.get(dstAdd).add(cnt);
-                                    } else {
-                                        ArrayList<Integer> list = new ArrayList<Integer>();
-                                        list.add(cnt);
-                                        evenSequenceMap.put(dstAdd, list);
-                                    }
+                                    writer.write(cnt + " -1 ");
+                                    atLeastOne = true;
                                     break;
+//                                    if (evenSequenceMap.containsKey(dstAdd)) {
+//                                        evenSequenceMap.get(dstAdd).add(cnt);
+//                                    } else {
+//                                        ArrayList<Integer> list = new ArrayList<Integer>();
+//                                        list.add(cnt);
+//                                        evenSequenceMap.put(dstAdd, list);
+//                                    }
+//                                    break;
                                 }
                                 cnt++;
                             }
+                        }
+                        if (atLeastOne) {
+                            writer.write("-2\n");
+                            writer.flush();
                         }
                         line = br.readLine();
                     }

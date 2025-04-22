@@ -23,9 +23,9 @@ public class main {
 //            P2PHostIdentify.run();
 
 //            System.out.println("Start sequence mining");
-            SequenceDatabase.run();
+//            SequenceDatabase.run();
 //
-            EventSequenceGenerate.run();
+//            EventSequenceGenerate.run();
 
             P2PManagementFlowDetect.run();
         } catch (Exception e) {

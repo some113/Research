@@ -60,13 +60,13 @@ public class SequenceDatabase {
                     int lines = 0;
                     while (reader.readLine() != null) lines++;
                     reader.close();
-                System.out.println("Mining sequences from: " + seqFile.getAbsolutePath());
+//                System.out.println("Mining sequences from: " + seqFile.getAbsolutePath());
                     try {
                         AlgoTKS algo = new AlgoTKS();
                         algo.setMinimumPatternLength(1);
-                        algo.setMaximumPatternLength(20);
+                        algo.setMaximumPatternLength(15);
                         // TODO: adjust
-//                        algo.setMinsup((int)(0.2 * lines));
+                        algo.setMinsup(Math.max(4,(int)(0.2 * lines)));
                         PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(seqFile.getAbsolutePath(), output, k);
 //                        System.out.println("Number of patterns: " + patterns.size());
                         int cnt = 0;

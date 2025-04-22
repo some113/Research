@@ -112,16 +112,18 @@ public class P2PManagementFlowDetect {
                     AlgoTKS algo = new AlgoTKS();
                     algo.setMinimumPatternLength(1);
                     algo.setMaximumPatternLength(10);
-                    algo.setMinsup((int)(0.5 * numberOfBehaviours));
+                    algo.setMinsup(Math.max(2,(int)(0.5 * numberOfBehaviours)));
                     PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
                             , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
                     algo = new AlgoTKS();
-                    algo.setMinimumPatternLength(10);
-                    algo.setMinsup(10);
-                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
-                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
+//                    algo.setMinimumPatternLength(5);
+//                    algo.setMaximumPatternLength(15);
+//                    algo.setMinsup((int) (0.1 * numberOfBehaviours));
+//                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+//                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
 
 //                    System.out.println("Number of patterns: " + patterns.size());
+                    if (!behaviourPatterns.isEmpty()) System.out.println("Pattern of " + folder.getName() + " with their sup: ");
                     while (!behaviourPatterns.isEmpty()) {
                         PatternTKS pattern = behaviourPatterns.poll();
                         String[] parts = pattern.getPrefix().split(" -1 ");
@@ -134,7 +136,8 @@ public class P2PManagementFlowDetect {
 //                        if (behaviourSupport < 0.5) {
 //                            continue;
 //                        }
-                        System.out.println("Behaviour length: " + behaviourLength);
+                        System.out.print(behaviourLength + "-" + behaviourSupport + " ");
+//                        System.out.println("Behaviour length: " + behaviourLength);
 
                         boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
                         if (predictValue) {
@@ -263,6 +266,8 @@ public class P2PManagementFlowDetect {
         readBotnetList();
 
         frequentBehaviourMining();
+
+        readBotnetList();
 
         evaluate();
     }

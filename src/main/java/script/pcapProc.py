@@ -3,6 +3,7 @@ import re
 
 def process_file(input_file_path, output_file_path):
     startTimeDict = {}
+    lastTimeDict = {}
     flowDict = {}
     TIME_GAP = 30
 
@@ -19,7 +20,9 @@ def process_file(input_file_path, output_file_path):
                 
                 try:
                     time = float(data[0])
+                    #print(time)
                 except ValueError:
+                    print("Error: Invalid time format in line:", line)
                     continue
                 
                 proto = data[1]
@@ -38,16 +41,20 @@ def process_file(input_file_path, output_file_path):
                     continue
                 
                 if key in startTimeDict:
-                    if time - startTimeDict[key] > TIME_GAP:
+                    if time - lastTimeDict[key] > TIME_GAP:
                         with open(output_file_path, 'a') as outfile:
-                            outfile.write(f"{time} {key} {','.join(flowDict[key])}\n")
+                            outfile.write(f"{startTimeDict[key]} {key} {','.join(flowDict[key])}\n")
+                            outfile.flush()
                             # print(f"{time} {key} {','.join(flowDict[key])}")
                         startTimeDict[key] = time
+                        lastTimeDict[key] = time
                         flowDict[key] = [size]
                     else:
                         flowDict[key].append(size)
+                        lastTimeDict[key] = time
                 else:
                     startTimeDict[key] = time
+                    lastTimeDict[key] = time
                     flowDict[key] = [size]
         
         for key in startTimeDict:
@@ -62,7 +69,7 @@ def process_file(input_file_path, output_file_path):
 
 # Directory containing input files
 root_dir = os.path.dirname(os.path.abspath(__file__)) + "\\..\\..\\..\\..\\"
-input_folder = root_dir + "InputData\\Flow"
+input_folder = root_dir + "tempFolderForPcapProcess"
 output_folder = "C:\\Newfolder\\Research\\InputData\\Flow" #root_dir + "InputData\\Flow"
 
 # Process all files in the input folder

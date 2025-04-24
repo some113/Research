@@ -100,14 +100,14 @@ public class EventSequenceGenerate {
                 String[] sizes = parts[0].split(" -1 ");
                 int cnt = parts[0].split(" -1 ").length;
                 int totalSize = 0;
-                for ( String size : sizes) {
-                    totalSize += Integer.parseInt(size);
-                }
+//                for ( String size : sizes) {
+//                    totalSize += Integer.parseInt(size);
+//                }
 //                    System.out.println("Count: " + cnt);
-                String regex = parts[0].substring(0, parts[0].lastIndexOf(" -1"));
-                regex ="(?:[^,]*,)?" + regex.replace(" -1 ", ",(?:[^,]*,)?") + "(?:,[^,]*)?";
+//                String regex = parts[0].substring(0, parts[0].lastIndexOf(" -1"));
+//                regex ="(?:[^,]*,)?" + regex.replace(" -1 ", ",(?:[^,]*,)?") + "(?:,[^,]*)?";
 //                    System.out.println(regex);
-                patterns.add(new Pattern(regex, (float) sup, cnt, totalSize));
+                patterns.add(new Pattern(parts[0], (float) sup, cnt, totalSize));
             }
             br.close();
         } catch (Exception e) {
@@ -198,7 +198,7 @@ public class EventSequenceGenerate {
                                 java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern.pattern);
                                 Matcher m = p.matcher(flowUnit);
 
-                                if (m.find()) {
+                                if (matchBySlideWindow(pattern.pattern,flowUnit)) {
                                     if (evenSequenceMap.containsKey(dstAdd)) {
                                         evenSequenceMap.get(dstAdd).add(cnt);
                                     } else {
@@ -258,6 +258,32 @@ public class EventSequenceGenerate {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    static boolean matchBySlideWindow(String pattern, String line) {
+//        ArrayList<String> timeIntervalResult = new ArrayList<>();
+        StringTokenizer lineTokenizer = new StringTokenizer(line, ",");
+        String[] lineParts = line.split(","), patternParts = pattern.split(" -1 "),
+                timeParts = lineParts[1].split(" "), parts = lineParts[0].split(" -1 ");
+        int patternI = 0;
+//        HashSet<String> packetSet = new HashSet<String>();
+        //packetSet.addAll(List.of(patternParts[patternI].split(" ")));
+        while (lineTokenizer.hasMoreTokens()) {
+            String packetSize = lineTokenizer.nextToken();
+            if (packetSize.equals(patternParts[patternI])) {
+                patternI++;
+                if (patternI >= patternParts.length) {
+                    return true;
+                }
+            }
+            if (patternI >= patternParts.length) {
+                return true;
+            }
+        }
+        if (patternI >= patternParts.length) {
+            return true;
+        }
+        return false;
     }
 
     public static void run() {

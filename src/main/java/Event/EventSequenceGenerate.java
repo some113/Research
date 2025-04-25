@@ -174,6 +174,7 @@ public class EventSequenceGenerate {
                     patternMap = collectEventsInATimeWindow(hostEventFolder, minIndex, maxIndex);
                     eventSet.clear();
                     eventSet.addAll(patternMap.values());
+                    writer.close();
 
                     eventSequenceFile = new File(System.getProperty("user.dir") + "/OutputData/EventSequences/" + host + "/" + minIndex + ".txt");
                     writer = new BufferedWriter(new FileWriter(eventSequenceFile.getAbsolutePath()));
@@ -199,18 +200,22 @@ public class EventSequenceGenerate {
                                 Matcher m = p.matcher(flowUnit);
 
                                 if (matchBySlideWindow(pattern.pattern,flowUnit)) {
-                                    if (evenSequenceMap.containsKey(dstAdd)) {
-                                        evenSequenceMap.get(dstAdd).add(cnt);
-                                    } else {
-                                        ArrayList<Integer> list = new ArrayList<Integer>();
-                                        list.add(cnt);
-                                        evenSequenceMap.put(dstAdd, list);
-                                    }
+//                                    if (evenSequenceMap.containsKey(dstAdd)) {
+//                                        evenSequenceMap.get(dstAdd).add(cnt);
+//                                    } else {
+//                                        ArrayList<Integer> list = new ArrayList<Integer>();
+//                                        list.add(cnt);
+//                                        evenSequenceMap.put(dstAdd, list);
+//                                    }
+                                    writer.write(cnt + " -1 ");
                                     break;
                                 }
                                 cnt++;
                             }
+
                         }
+                        writer.write("-2\n");
+                        writer.flush();
                         line = br.readLine();
                     }
                 } catch (Exception e) {
@@ -218,7 +223,8 @@ public class EventSequenceGenerate {
                     e.printStackTrace();
                 }
             }
-            printFromEventSequenceMap(evenSequenceMap, writer);
+            writer.close();
+//            printFromEventSequenceMap(evenSequenceMap, writer);
         }
     }
 

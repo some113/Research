@@ -77,6 +77,10 @@ def build_line(timestamp, proto, src_ip, dst_ip, rest):
 def main():
     print("== Log Processor & Merger (UNIX timestamp based) ==")
 
+    generalOptions = {
+        'auto_align_time': ask_yes_no("Auto-align timestamps?")
+    }
+
     file1 = get_filename_input("Enter path to first file: ")
     file2 = get_filename_input("Enter path to second file: ")
 
@@ -96,9 +100,10 @@ def main():
         options1['subnet_map'] = get_subnet_mapping("File 1 subnet mapping")
     if ask_yes_no("Filter by time range in file 1?"):
         options1['time_range'] = get_time_range("File 1 time range")
-    if ask_yes_no("Shift timestamps in file 1?"):
-        options1['shift_time'] = True
-        options1['shift_seconds'] = get_time_shift("File 1 time shift")
+    if not generalOptions['auto_align_time']:
+        if ask_yes_no("Shift timestamps in file 1?"):
+            options1['shift_time'] = True
+            options1['shift_seconds'] = get_time_shift("File 1 time shift")
 
     options2 = {
         'extract_ip': ask_yes_no("Filter source IP in file 2?"),
@@ -116,9 +121,20 @@ def main():
         options2['subnet_map'] = get_subnet_mapping("File 2 subnet mapping")
     if ask_yes_no("Filter by time range in file 2?"):
         options2['time_range'] = get_time_range("File 2 time range")
-    if ask_yes_no("Shift timestamps in file 2?"):
-        options2['shift_time'] = True
-        options2['shift_seconds'] = get_time_shift("File 2 time shift")
+    if not generalOptions['auto_align_time']:
+        if ask_yes_no("Shift timestamps in file 2?"):
+            options2['shift_time'] = True
+            options2['shift_seconds'] = get_time_shift("File 2 time shift")
+
+    if generalOptions['auto_align_time']:
+        startTime1 = sorted(process_file(file1, options1))[0][0]
+        startTime2 = sorted(process_file(file2, options2))[0][0]
+        if startTime1 < startTime2:
+            options1['shift_time'] = True
+            options1['shift_seconds'] = startTime2 - startTime1
+        else:
+            options2['shift_time'] = True
+            options2['shift_seconds'] = startTime1 - startTime2
 
     # === Process both files ===
     processed1 = process_file(file1, options1)

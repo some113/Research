@@ -32,7 +32,7 @@ def process_file(filename, options):
         for line in f:
             # === PLACEHOLDER: Parse fields from your line ===
             try:
-                timestamp, proto, src_ip, rest = parse_line(line)
+                timestamp, proto, src_ip, dst_ip, rest = parse_line(line)
             except Exception:
                 continue  # Skip bad lines
 
@@ -43,6 +43,8 @@ def process_file(filename, options):
                 old_net, new_net = options['subnet_map']
                 if src_ip.startswith(old_net):
                     src_ip = src_ip.replace(old_net, new_net, 1)
+                if dst_ip.startswith(old_net):
+                    dst_ip = dst_ip.replace(old_net, new_net, 1)
             if options['time_range']:
                 start, end = options['time_range']
                 if not (start <= timestamp <= end):
@@ -51,7 +53,7 @@ def process_file(filename, options):
                 timestamp += options['shift_seconds']
 
             # === REBUILD line ===
-            new_line = build_line(timestamp, proto, src_ip, rest)
+            new_line = build_line(timestamp, proto, src_ip, dst_ip, rest)
             processed.append((timestamp, new_line))
 
     return processed
@@ -64,12 +66,13 @@ def parse_line(line):
     parts = line.strip().split(' ')
     timestamp = float(parts[0])
     src_ip = parts[2]
-    rest = ' '.join(parts[3:])
-    return timestamp, parts[1], src_ip, rest
+    dst_ip = parts[3]
+    rest = ' '.join(parts[4:])
+    return timestamp, parts[1], src_ip, dst_ip, rest
 
-def build_line(timestamp, proto, src_ip, rest):
+def build_line(timestamp, proto, src_ip, dst_ip, rest):
     """ Reconstruct line from components """
-    return f"{timestamp} {proto} {src_ip} {rest}"
+    return f"{timestamp} {proto} {src_ip} {dst_ip} {rest}"
 
 def main():
     print("== Log Processor & Merger (UNIX timestamp based) ==")

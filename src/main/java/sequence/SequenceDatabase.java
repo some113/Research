@@ -39,7 +39,7 @@ public class SequenceDatabase {
         File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/");
         File eventFolder = new File(System.getProperty("user.dir") + "/OutputData/Events/");
         ExecutorService executor = Executors.newFixedThreadPool(5);
-        List<Future<?>> futures = new LinkedList<>();
+        List<CompletableFuture<?>> futures = new LinkedList<>();
 
         if (!eventFolder.exists()) {
             eventFolder.mkdir();
@@ -57,35 +57,40 @@ public class SequenceDatabase {
             hostEventFolder.mkdir();
 
             for (File seqFile : seqFol.listFiles(file -> !file.getName().equals("all.txt"))) {
-                Future<?> future = executor.submit(new SequenceMiningProcessor(seqFile));
+                CompletableFuture<?> future = CompletableFuture.runAsync( new SequenceMiningProcessor(seqFile), executor);
+                future = future.completeOnTimeout(null, 10, TimeUnit.MINUTES);
                 futures.add(future);
             }
 
-            for (Future<?> future : futures) {
-                try {
-                    future.get(10, TimeUnit.MINUTES);
-                } catch (ExecutionException e) {
-                    System.out.println("Error when mining sequence: " + e.getMessage());
-                    e.printStackTrace();
-                } catch (TimeoutException e) {
-                    System.out.println("Timeout when mining sequence: " + e.getMessage());
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    System.out.println("Interrupted when mining sequence: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-            Iterator<Future<?>> iter = futures.iterator();
-            while (iter.hasNext()) {
-                Future<?> future = iter.next();
-                if (!future.isDone() && !future.isCancelled()) {
-                    System.out.println("Failed at task: " + future);
-                }
-            }
+
 
 //                writer.flush();
 //                writer.close();
         }
+
+//        for (Future<?> future : futures) {
+//            try {
+//                future.get(10, TimeUnit.MINUTES);
+//            } catch (ExecutionException e) {
+//                System.out.println("Error when mining sequence: " + e.getMessage());
+//                e.printStackTrace();
+//            } catch (TimeoutException e) {
+//                System.out.println("Timeout when mining sequence: " + e.getMessage());
+//                e.printStackTrace();
+//            } catch (InterruptedException e) {
+//                System.out.println("Interrupted when mining sequence: " + e.getMessage());
+//                e.printStackTrace();
+//            }
+//        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        Iterator<CompletableFuture<?>> iter = futures.iterator();
+        while (iter.hasNext()) {
+            CompletableFuture<?> future = iter.next();
+            future.cancel(true);
+        }
+        executor.shutdown();
 
     }
     public static void generateEventSequence() {
@@ -114,7 +119,6 @@ public class SequenceDatabase {
         } catch (Exception e) {
             System.out.println("Error when reading data in sequence processing: " + e.getMessage());
             e.printStackTrace();
-            exit(1);
         }
     }
 
@@ -125,47 +129,52 @@ public class SequenceDatabase {
     }
 }
 
-class SequenceMiningProcessor implements Callable<Void> {
+class SequenceMiningProcessor implements Runnable {
     private File sequenceToMineFile;
 
     public SequenceMiningProcessor(File sequenceToMineFile) {
         this.sequenceToMineFile = sequenceToMineFile;
     }
 
-    public Void call() throws Exception {
-        String eventFile = System.getProperty("user.dir") + "/OutputData/Events/" + sequenceToMineFile.getParentFile().getName() + "/" + sequenceToMineFile.getName();
-        BufferedWriter writer = new BufferedWriter(new FileWriter(eventFile));
-        BufferedReader reader = new BufferedReader(new FileReader(sequenceToMineFile));
-        int lines = 0;
-        while (reader.readLine() != null) lines++;
-        reader.close();
-        System.out.println("Mining sequences from: " + sequenceToMineFile.getAbsolutePath());
+    public void run() {
         try {
-            AlgoTKS algo = new AlgoTKS();
-            algo.setMinimumPatternLength(1);
-            algo.setMaximumPatternLength(20);
-            // TODO: adjust
-            algo.setMinsup(Math.max(4, (int) (0.2 * lines)));
-            PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(sequenceToMineFile.getAbsolutePath(),
-                    System.getProperty("user.dir") + "/OutputData", 15);
+            String eventFile = System.getProperty("user.dir") + "/OutputData/Events/" + sequenceToMineFile.getParentFile().getName() + "/" + sequenceToMineFile.getName();
+            BufferedWriter writer = new BufferedWriter(new FileWriter(eventFile));
+            BufferedReader reader = new BufferedReader(new FileReader(sequenceToMineFile));
+            int lines = 0;
+            while (reader.readLine() != null) lines++;
+            reader.close();
+            System.out.println("Mining sequences from: " + sequenceToMineFile.getAbsolutePath());
+            try {
+                AlgoTKS algo = new AlgoTKS();
+                algo.setMinimumPatternLength(1);
+                algo.setMaximumPatternLength(20);
+                // TODO: adjust
+                algo.setMinsup(Math.max(4, (int) (0.2 * lines)));
+                PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(sequenceToMineFile.getAbsolutePath(),
+                        System.getProperty("user.dir") + "/OutputData", 15);
 //                        System.out.println("Number of patterns: " + patterns.size());
-            int cnt = 0;
-            while (!patterns.isEmpty()) {
-                PatternTKS pattern = patterns.poll();
-                // TODO: modify to get unique pattern, accumulate support from all file
+                int cnt = 0;
+                while (!patterns.isEmpty()) {
+                    PatternTKS pattern = patterns.poll();
+                    // TODO: modify to get unique pattern, accumulate support from all file
 //                            if (!eventSet.contains(pattern) && patterns.size() < k) eventSet.add(pattern);
 //                            if (patterns.size() < k) writer.write(pattern.getPrefix() + " #SUP: " + (float) pattern.support/lines + "\n");
 //                            cnt++;
 //                            if (patterns.size() > k) break;
-                writer.write(pattern.getPrefix() + " #SUP: " + pattern.support + "\n");
-                if (++cnt > 15) break;
+                    writer.write(pattern.getPrefix() + " #SUP: " + pattern.support + "\n");
+                    if (++cnt > 15) break;
+                }
+                writer.flush();
+                writer.close();
+            } catch (Exception e) {
+                System.out.println("Error when mining sequences: " + e.getMessage());
+                e.printStackTrace();
             }
-            writer.flush();
-            writer.close();
         } catch (Exception e) {
             System.out.println("Error when mining sequences: " + e.getMessage());
             e.printStackTrace();
         }
-        return null;
+
     }
 }

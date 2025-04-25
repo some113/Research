@@ -2,22 +2,26 @@ package p2p;
 
 import Config.Config;
 import Event.EventSequenceGenerate.Pattern;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
-import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.util.hash.Hash;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 import spmf.AlgoTKS;
 import spmf.PatternTKS;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
+import java.util.List;
+import java.util.concurrent.*;
+
+import static p2p.P2PManagementFlowDetect.*;
 
 public class P2PManagementFlowDetect {
 
@@ -30,20 +34,29 @@ public class P2PManagementFlowDetect {
 
     static String botnetListFilePath = System.getProperty("user.dir") + "/InputData/BotnetList.txt";
 
-    static HashMap<String, Boolean> predictValues = new HashMap<String, Boolean>();
+    public static HashMap<String, Boolean> predictValues = new HashMap<String, Boolean>();
 
     static HashSet<String> botnetList = new HashSet<String>();
 
     static HashMap<String, ArrayList<String>> resultMap = new HashMap<String,  ArrayList<String>>();
 
+    public static PatternStatisticVisualize visualize = new PatternStatisticVisualize();
 
+    public static HashMap<String, Boolean> globalIsBotnet = new HashMap<String, Boolean>();
 
     public static void frequentBehaviourMining() {
         BufferedReader br = null;
         BufferedWriter writer = null;
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        List<CompletableFuture<?>> futures = new ArrayList<>();
 
+        XYSeries points;
         for (File folder : new File(eventSequenceFolder).listFiles()) {
+            //if (folder.getName().startsWith("147.32.85") || folder.getName().startsWith("147.32.86")) continue;
             boolean isBonet = false;
+            points = new XYSeries(folder.getName());
+//            visualize.addChartStatistic(points, folder.getName());
+            visualize.addPlaceHolder(folder.getName());
 
 //            ArrayList<Pattern> patterns = new ArrayList<Pattern>();
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
@@ -104,55 +117,84 @@ public class P2PManagementFlowDetect {
             }
 
             for (File fileByTimeWindow : folder.listFiles()) {
-                patternIDMap = buildPatternIDMap(fileByTimeWindow);
-                try {
-                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
-                    int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
-
-                    AlgoTKS algo = new AlgoTKS();
-                    algo.setMinimumPatternLength(1);
-                    algo.setMaximumPatternLength(10);
-                    algo.setMinsup((int)(0.5 * numberOfBehaviours));
-                    PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
-                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
-                    algo = new AlgoTKS();
-                    algo.setMinimumPatternLength(10);
-                    algo.setMinsup(10);
-                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
-                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
-
-//                    System.out.println("Number of patterns: " + patterns.size());
-                    while (!behaviourPatterns.isEmpty()) {
-                        PatternTKS pattern = behaviourPatterns.poll();
-                        String[] parts = pattern.getPrefix().split(" -1 ");
-
-                        int behaviourLength = 0;
-                        for (String part : parts) {
-                            behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
-                        }
-                        float behaviourSupport = (float) pattern.support / numberOfBehaviours;
-//                        if (behaviourSupport < 0.5) {
-//                            continue;
+                CompletableFuture<?> future = CompletableFuture.runAsync(new frequentBehaviourProcessor(fileByTimeWindow), executor);
+                future = future.completeOnTimeout(null, 1, TimeUnit.MINUTES);
+                futures.add(future);
+//                patternIDMap = buildPatternIDMap(fileByTimeWindow);
+//                try {
+//                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
+//                    int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
+//
+//                    AlgoTKS algo = new AlgoTKS();
+//                    algo.setMinimumPatternLength(1);
+//                    algo.setMaximumPatternLength(10);
+//                    algo.setMinsup((int)0.3 * numberOfBehaviours);
+//                    PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+//                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15);
+////                    algo = new AlgoTKS();
+////                    algo.setMinimumPatternLength(10);
+////                    algo.setMinsup((int)(0.01 * numberOfBehaviours));
+//                    behaviourPatterns.addAll(algo.runAlgorithm(fileByTimeWindow.getAbsolutePath()
+//                            , folder.getAbsolutePath() + "/behaviourTKS.txt", 15));
+//
+////                    System.out.println("Number of patterns: " + patterns.size());
+//                    if (!behaviourPatterns.isEmpty()) System.out.println("Pattern of " + folder.getName() + " with their sup: ");
+//                    while (!behaviourPatterns.isEmpty()) {
+//                        PatternTKS pattern = behaviourPatterns.poll();
+//                        String[] parts = pattern.getPrefix().split(" -1 ");
+//
+//                        int behaviourLength = 0;
+//                        for (String part : parts) {
+//                            behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
 //                        }
-                        System.out.println("Behaviour length: " + behaviourLength);
-
-                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
-                        if (predictValue) {
-                            predictValues.put(folder.getName(), true);
-                            isBonet = true;
-                            break;
-                        }
-                        // TODO: modify to get result on certain criteria
-                    }
-
-                } catch (Exception e) {
-
-                }
-                if (isBonet) {
-                    break;
-                }
+//                        float behaviourSupport = (float) pattern.support / numberOfBehaviours;
+////                        if (behaviourSupport < 0.5) {
+////                            continue;
+////                        }
+//                        System.out.print(behaviourLength + "-" + behaviourSupport + " ");
+////                        System.out.println("Behaviour length: " + behaviourLength);
+//                        points.add(behaviourLength, behaviourSupport * behaviourLength);
+//
+//                        boolean predictValue = behaviourLength > lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
+//                        if (predictValue) {
+//                            predictValues.put(folder.getName(), true);
+//                            isBonet = true;
+////                            break;
+//                        }
+//                        // TODO: modify to get result on certain criteria
+//                    }
+//
+//                } catch (Exception e) {
+//
+//                }
+//                if (isBonet) {
+//                    break;
+//                }
 
             }
+        }
+
+//        for (Future<?> future : futures) {
+//            try {
+//                future.get(30, TimeUnit.SECONDS);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            } catch (ExecutionException e) {
+//                e.printStackTrace();
+//            } catch (TimeoutException e) {
+//                System.out.println("Timeout when mining behaviour: ");
+//                e.printStackTrace();
+//            } finally {
+//                future.cancel(true);
+//            }
+//        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        for (Future<?> future : futures) {
+            future.cancel(true);
+        }
+        executor.shutdown();
+
+        for (File folder : new File(eventSequenceFolder).listFiles()) {
             if (!predictValues.containsKey(folder.getName())) {
                 predictValues.put(folder.getName(), false);
             }
@@ -163,7 +205,7 @@ public class P2PManagementFlowDetect {
         }
     }
 
-    static HashMap<Integer, Pattern> buildPatternIDMap(File file) {
+    public static HashMap<Integer, Pattern> buildPatternIDMap(File file) {
         try {
             BufferedReader br = new BufferedReader(new FileReader(file.getAbsolutePath()));
             HashMap<Integer, Pattern> patternIDMap = new HashMap<Integer, Pattern>();
@@ -249,7 +291,7 @@ public class P2PManagementFlowDetect {
         }
     }
 
-    static int getNumberOfLines(String filePath) throws IOException {
+    public static int getNumberOfLines(String filePath) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(filePath));
         int count = 0;
         while (br.readLine() != null) {
@@ -258,6 +300,15 @@ public class P2PManagementFlowDetect {
         br.close();
         return count;
     }
+    private static JFreeChart createChart(String title, double[] xData, double[] yData) {
+        XYSeries series = new XYSeries(title);
+        for (int i = 0; i < xData.length; i++) {
+            series.add(xData[i], yData[i]);
+        }
+        XYSeriesCollection dataset = new XYSeriesCollection(series);
+        return ChartFactory.createXYLineChart(title, "X", "Y", dataset);
+    }
+
 
     public static void  run() throws IllegalArgumentException, IOException {
         readBotnetList();
@@ -265,5 +316,158 @@ public class P2PManagementFlowDetect {
         frequentBehaviourMining();
 
         evaluate();
+
+        visualize.save();
+    }
+}
+class PatternStatisticVisualize {
+    ArrayList<JFreeChart> charts = new ArrayList<JFreeChart>();
+//    static HashMap<String, XYSeries> pointsMap= new HashMap<String, XYSeries>();
+    static XYSeriesCollection pointsMap = new XYSeriesCollection();
+    //ArrayList<String> allowedHosts = new ArrayList<String>();
+    String[] allowedHost = {"172.16.0.2", "172.16.0.11", "172.16.0.12", "172.16.2.11", "172.16.2.12", "147.32.84.165",
+            "147.32.84.191", "147.32.84.192", "192.168.1.126", "10.0.2.113", "10.0.2.104", "10.0.2.106", "10.0.2.103",
+            "192.168.0.9", "192.168.0.250", "192.168.0.251", "192.168.0.150", "192.168.0.151", "192.168.1.2",
+            "192.168.2.2", "192.168.3.2", "192.168.4.2"};
+
+    public static void addPoint(String host, float x, float y) {
+        if (pointsMap.getSeriesIndex(host) != -1) {
+            XYSeries points = pointsMap.getSeries(host);
+            points.add(x, y);
+        } else {
+            XYSeries points = new XYSeries(host);
+            points.add(x, y);
+            pointsMap.addSeries(points);
+        }
+    }
+
+    public static void addPlaceHolder(String host) {
+        XYSeries points = new XYSeries(host);
+        pointsMap.addSeries(points);
+    }
+
+    void addChartStatistic(XYSeries points, String title) {
+//        if (!allowedHostSet.contains(title)) {
+//            return;
+//        }
+        XYSeriesCollection dataset = new XYSeriesCollection(points);
+
+
+        JFreeChart chart = ChartFactory.createScatterPlot(
+                title, "X", "Y", dataset, PlotOrientation.VERTICAL, false, false, false );
+
+        XYPlot plot = chart.getXYPlot();
+        NumberAxis rangeAxis = (NumberAxis)plot.getRangeAxis();
+        NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
+        rangeAxis.setRange(0, 10);
+        domainAxis.setRange(0,80);
+        charts.add(chart);
+    }
+    void save() {
+        for (Object points : pointsMap.getSeries()) {
+            points = (XYSeries) points;
+//            XYSeriesCollection dataset = new XYSeriesCollection(pointsMap.get(host));
+            JFreeChart chart = ChartFactory.createScatterPlot(
+                    (String)((XYSeries) points).getKey(), "X", "Y", new XYSeriesCollection((XYSeries) points), PlotOrientation.VERTICAL, false, false, false
+            );
+            XYPlot plot = chart.getXYPlot();
+            NumberAxis rangeAxis = (NumberAxis)plot.getRangeAxis();
+            NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
+            rangeAxis.setRange(0, 10);
+            domainAxis.setRange(0,80);
+            charts.add(chart);
+        }
+
+        int edgeNumber = (int) Math.ceil(Math.sqrt(charts.size()));
+        int chartWidth = 800, chartHeight = 600;
+        int totalWidth = chartWidth * edgeNumber, totalHeight = chartHeight * edgeNumber;
+
+        BufferedImage combinedImage = new BufferedImage(totalWidth, totalHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = combinedImage.createGraphics();
+
+
+
+        for (int i = 0; i < charts.size(); i++) {
+            BufferedImage image = charts.get(i).createBufferedImage(chartWidth, chartHeight);
+            g.drawImage(image, (i % edgeNumber) * chartWidth, (i / edgeNumber) * chartHeight, null);
+            g.drawImage(image, 0, 0, null);
+        }
+
+        g.dispose();
+
+        try {
+            ImageIO.write(combinedImage, "png", new File(System.getProperty("user.dir") + "/OutputData/chart.png"));
+        } catch (IOException e) {
+            System.out.println("Error when saving chart: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+    }
+
+
+}
+
+class frequentBehaviourProcessor implements Runnable {
+    private File eventSequenceFile;
+
+    public frequentBehaviourProcessor(File eventSequenceFile) {
+        this.eventSequenceFile = eventSequenceFile;
+    }
+
+    public void run() {
+//            if (globalIsBotnet.get(eventSequenceFile.getParentFile().getName())) {
+//                return null;
+//            }
+        System.out.println("Mining frequent behaviour from: " + eventSequenceFile.getName());
+        HashMap<Integer, Pattern> patternIDMap = buildPatternIDMap(eventSequenceFile);
+        try {
+            int numberOfBehaviours = getNumberOfLines(eventSequenceFile.getAbsolutePath()) - patternIDMap.size();
+            int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
+
+            AlgoTKS algo = new AlgoTKS();
+            algo.setMinimumPatternLength(1);
+            algo.setMaximumPatternLength(10);
+            algo.setMinsup((int)0.3 * numberOfBehaviours);
+            PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(eventSequenceFile.getAbsolutePath()
+                    , System.getProperty("user.dir") + "/OutputData/behaviourTKS.txt", 15);
+            algo = new AlgoTKS();
+            algo.setMinimumPatternLength(10);
+            algo.setMinsup(5);
+            behaviourPatterns.addAll(algo.runAlgorithm(eventSequenceFile.getAbsolutePath()
+                , eventSequenceFile.getParentFile().getAbsolutePath() + "/behaviourTKS.txt", 15));
+
+//                    System.out.println("Number of patterns: " + patterns.size());
+            if (!behaviourPatterns.isEmpty()) System.out.println("Pattern of " + eventSequenceFile.getParentFile().getName() + " with their sup: ");
+            while (!behaviourPatterns.isEmpty()) {
+                PatternTKS pattern = behaviourPatterns.poll();
+                String[] parts = pattern.getPrefix().split(" -1 ");
+
+                int behaviourLength = 0;
+                for (String part : parts) {
+                    behaviourLength += patternIDMap.get(Integer.parseInt(part)).length;
+                }
+                float behaviourSupport = (float) pattern.support / numberOfBehaviours;
+//                        if (behaviourSupport < 0.5) {
+//                            continue;
+//                        }
+                System.out.print(behaviourLength + "-" + behaviourSupport + " ");
+//                        System.out.println("Behaviour length: " + behaviourLength);
+                PatternStatisticVisualize.addPoint(eventSequenceFile.getParentFile().getName(),
+                        behaviourLength, behaviourSupport * behaviourLength);
+
+                boolean predictValue = behaviourLength > P2PManagementFlowDetect.lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
+                if (predictValue) {
+                    predictValues.put(eventSequenceFile.getParentFile().getName(), true);
+                    globalIsBotnet.put(eventSequenceFile.getParentFile().getName(), true);
+//                            break;
+                }
+                // TODO: modify to get result on certain criteria
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error when mining frequent behaviour " + eventSequenceFile.getName() + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return;
     }
 }

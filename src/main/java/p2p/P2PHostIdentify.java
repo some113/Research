@@ -51,9 +51,6 @@ public class P2PHostIdentify {
             }
 //            srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
             dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
-            if (srcAdd.equals("172.16.2.113")) {
-                return;
-            }
             if (!(srcAdd.startsWith("10.") || srcAdd.startsWith("172.") || srcAdd.startsWith("192.") || srcAdd.startsWith("147."))
                 && (dstAdd.startsWith("10.") || dstAdd.startsWith("172.") || dstAdd.startsWith("192.") || dstAdd.startsWith("147."))) {
                 context.write(new Text(dstAdd), new Text("-1 " + time + " " + dstAdd + " " + flow));
@@ -150,16 +147,6 @@ public class P2PHostIdentify {
                 }
                 flowMap.get(i).get(dstAdd).add(flow);
 
-//                if (!sequenceToMineWriterMap.containsKey("all" + srcAdd)) {
-//                    File file = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt");
-//                    sequenceToMineWriterMap.put("all" + srcAdd, new BufferedWriter(new FileWriter(
-//                            System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/all.txt", true)));
-//                }
-
-//                allWriter = sequenceToMineWriterMap.get("all" + srcAdd);
-//
-//                allWriter.write(dstAdd + " " + flow + "\n");
-//                allWriter.flush();
 
                 context.write(new Text(srcAdd), new Text(dstAdd + " " + flow));
             }
@@ -177,9 +164,10 @@ public class P2PHostIdentify {
                 allWriter = new BufferedWriter(new FileWriter(sequenceFile, true));
                 for (String dstAdd : flowMap.get(sequenceNumber).keySet()) {
                     allWriter.write(dstAdd + " ");
-                    for (String flow : flowMap.get(sequenceNumber).get(dstAdd)) {
+                    for (int i = 0; i < flowMap.get(sequenceNumber).get(dstAdd).size(); i++) {
+                        String flow = flowMap.get(sequenceNumber).get(dstAdd).get(i);
                         allWriter.write(flow);
-                        if (!flow.equals(flowMap.get(sequenceNumber).get(dstAdd).get(flowMap.get(sequenceNumber).get(dstAdd).size() - 1))) {
+                        if (i < flowMap.get(sequenceNumber).get(dstAdd).size() - 1) {
                             allWriter.write(".");
                         }
                     }

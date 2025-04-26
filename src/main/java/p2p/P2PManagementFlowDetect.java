@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.*;
 
 import static p2p.P2PManagementFlowDetect.*;
+import Thread.MyMultiThread;
 
 public class P2PManagementFlowDetect {
 
@@ -47,8 +48,9 @@ public class P2PManagementFlowDetect {
     public static void frequentBehaviourMining() {
         BufferedReader br = null;
         BufferedWriter writer = null;
-        ExecutorService executor = Executors.newFixedThreadPool(5);
+        ExecutorService executor = Executors.newFixedThreadPool(1);
         List<CompletableFuture<?>> futures = new ArrayList<>();
+        MyMultiThread myMultiThread = new MyMultiThread(10 * 60 * 1000, 5);
 
         XYSeries points;
         for (File folder : new File(eventSequenceFolder).listFiles()) {
@@ -117,9 +119,10 @@ public class P2PManagementFlowDetect {
             }
 
             for (File fileByTimeWindow : folder.listFiles()) {
-                CompletableFuture<?> future = CompletableFuture.runAsync(new frequentBehaviourProcessor(fileByTimeWindow), executor);
-                future = future.completeOnTimeout(null, 1, TimeUnit.MINUTES);
-                futures.add(future);
+//                CompletableFuture<?> future = CompletableFuture.runAsync(new frequentBehaviourProcessor(fileByTimeWindow), executor);
+//                future = future.completeOnTimeout(null, 1, TimeUnit.MINUTES);
+//                futures.add(future);
+                myMultiThread.addTask(new frequentBehaviourProcessor(fileByTimeWindow));
 //                patternIDMap = buildPatternIDMap(fileByTimeWindow);
 //                try {
 //                    int numberOfBehaviours = getNumberOfLines(fileByTimeWindow.getAbsolutePath()) - patternIDMap.size();
@@ -188,11 +191,19 @@ public class P2PManagementFlowDetect {
 //                future.cancel(true);
 //            }
 //        }
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        for (Future<?> future : futures) {
-            future.cancel(true);
-        }
-        executor.shutdown();
+//        try {
+//            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        } catch (ExecutionException e) {
+//            throw new RuntimeException(e);
+//        }
+//        for (Future<?> future : futures) {
+//            future.cancel(true);
+//        }
+//        executor.shutdown();
+
+        MyMultiThread.run();
 
         for (File folder : new File(eventSequenceFolder).listFiles()) {
             if (!predictValues.containsKey(folder.getName())) {
@@ -407,14 +418,14 @@ class PatternStatisticVisualize {
 
 }
 
-class frequentBehaviourProcessor implements Runnable {
+class frequentBehaviourProcessor implements Callable<Void> {
     private File eventSequenceFile;
 
     public frequentBehaviourProcessor(File eventSequenceFile) {
         this.eventSequenceFile = eventSequenceFile;
     }
 
-    public void run() {
+    public Void call() {
 //            if (globalIsBotnet.get(eventSequenceFile.getParentFile().getName())) {
 //                return null;
 //            }
@@ -468,6 +479,6 @@ class frequentBehaviourProcessor implements Runnable {
             System.out.println("Error when mining frequent behaviour " + eventSequenceFile.getName() + ": " + e.getMessage());
             e.printStackTrace();
         }
-        return;
+        return null;
     }
 }

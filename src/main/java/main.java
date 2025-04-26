@@ -9,6 +9,8 @@ import sequence.SequenceDatabase;
 import p2p.P2PManagementFlowDetect;
 import Event.EventSequenceGenerate;
 
+import static java.lang.System.exit;
+
 public class main {
     public static void main(String[] args) {
         try {
@@ -21,18 +23,17 @@ public class main {
             }
 
 //            P2PHostIdentify.run();
-
-//            System.out.println("Start sequence mining");
-            SequenceDatabase.run();
 //
-            EventSequenceGenerate.run();
+////            System.out.println("Start sequence mining");
+//            SequenceDatabase.run();
+////
+//            EventSequenceGenerate.run();
 
             P2PManagementFlowDetect.run();
         } catch (Exception e) {
             e.printStackTrace();
         }
         System.out.println("Hello World!");
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-
+        exit(0);
     }
 }

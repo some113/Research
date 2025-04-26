@@ -19,7 +19,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-
+import Thread.MyMultiThread;
 
 import static java.lang.System.exit;
 
@@ -38,8 +38,11 @@ public class SequenceDatabase {
         String output = System.getProperty("user.dir") + "/OutputData/events.txt";
         File sequenceFolder = new File(System.getProperty("user.dir") + "/OutputData/SequencesToMine/");
         File eventFolder = new File(System.getProperty("user.dir") + "/OutputData/Events/");
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        List<CompletableFuture<?>> futures = new LinkedList<>();
+//        ExecutorService executor = Executors.newFixedThreadPool(5);
+//        List<CompletableFuture<?>> futures = new LinkedList<>();
+        List<Future<?>> futures = new LinkedList<>();
+        List<Callable<Void>> tasks = new ArrayList<>();
+        MyMultiThread myMultiThread = new MyMultiThread(10 * 60 * 1000, 5);
 
         if (!eventFolder.exists()) {
             eventFolder.mkdir();
@@ -57,9 +60,13 @@ public class SequenceDatabase {
             hostEventFolder.mkdir();
 
             for (File seqFile : seqFol.listFiles(file -> !file.getName().equals("all.txt"))) {
-                CompletableFuture<?> future = CompletableFuture.runAsync( new SequenceMiningProcessor(seqFile), executor);
-                future = future.completeOnTimeout(null, 10, TimeUnit.MINUTES);
-                futures.add(future);
+//                CompletableFuture<?> future = CompletableFuture.runAsync( new SequenceMiningProcessor(seqFile), executor);
+//                future = future.completeOnTimeout(null, 10, TimeUnit.MINUTES);
+//                Future<?> future = executor.submit(new SequenceMiningProcessor(seqFile));
+//                futures.add(future);
+
+                Callable<Void> task = new SequenceMiningProcessor(seqFile);
+                myMultiThread.addTask(task);
             }
 
 
@@ -83,15 +90,16 @@ public class SequenceDatabase {
 //            }
 //        }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-        Iterator<CompletableFuture<?>> iter = futures.iterator();
-        while (iter.hasNext()) {
-            CompletableFuture<?> future = iter.next();
-            future.cancel(true);
-        }
-        executor.shutdown();
-
+//        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+//
+//
+//        Iterator<Future<?>> iter = futures.iterator();
+//        while (iter.hasNext()) {
+//            Future<?> future = iter.next();
+//            future.cancel(true);
+//        }
+//        executor.shutdownNow();
+            MyMultiThread.run();
     }
     public static void generateEventSequence() {
         //Read data
@@ -129,14 +137,14 @@ public class SequenceDatabase {
     }
 }
 
-class SequenceMiningProcessor implements Runnable {
+class SequenceMiningProcessor implements Callable<Void> {
     private File sequenceToMineFile;
 
     public SequenceMiningProcessor(File sequenceToMineFile) {
         this.sequenceToMineFile = sequenceToMineFile;
     }
 
-    public void run() {
+    public Void call() throws Exception {
         try {
             String eventFile = System.getProperty("user.dir") + "/OutputData/Events/" + sequenceToMineFile.getParentFile().getName() + "/" + sequenceToMineFile.getName();
             BufferedWriter writer = new BufferedWriter(new FileWriter(eventFile));
@@ -175,6 +183,6 @@ class SequenceMiningProcessor implements Runnable {
             System.out.println("Error when mining sequences: " + e.getMessage());
             e.printStackTrace();
         }
-
+        return null;
     }
 }

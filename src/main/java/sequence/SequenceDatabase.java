@@ -1,8 +1,11 @@
 package sequence;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 
 import spmf.AlgoTKS;
@@ -21,9 +24,21 @@ import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import Thread.MyMultiThread;
 
+import javax.imageio.ImageIO;
+
 import static java.lang.System.exit;
 
 public class SequenceDatabase {
+    public static Heatmap botHeatmap = new Heatmap();
+    public static Heatmap legitHeatmap = new Heatmap();
+    public static HashSet<String> legitList = new HashSet<String>(Arrays.asList("192.168.1.2", "192.168.2.2", "192.168.3.2",
+            "192.168.4.2", "192.168.11.2", "192.168.12.2", "192.168.13.2", "192.168.21.2", "192.168.22.2", "192.168.23.2",
+            "192.168.31.2", "192.168.32.2", "192.168.33.2", "192.168.41.2", "192.168.42.2", "192.168.43.2"));
+    public static HashSet<String> omitList = new HashSet<String>(Arrays.asList("172.16.2.112", "172.16.2.113", "172.16.2.13",
+            "172.16.2.14", "172.16.2.2", "172.16.2.3"));
+
+
+
     static TreeSet<PatternTKS> eventSet = new TreeSet<PatternTKS>((p1, p2) -> {
         if (p1.getPrefix().equals(p2.getPrefix())) {
             return 0;
@@ -100,6 +115,13 @@ public class SequenceDatabase {
 //        }
 //        executor.shutdownNow();
             MyMultiThread.run();
+//        try {
+//            SequenceDatabase.legitHeatmap.saveImage(System.getProperty("user.dir") + "/OutputData/LegitHeatmap.png");
+//            botHeatmap.saveImage(System.getProperty("user.dir") + "/OutputData/botHeatmap.png");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            System.out.println("Error when saving heatmap: " + e.getMessage());
+//        }
     }
     public static void generateEventSequence() {
         //Read data
@@ -135,6 +157,84 @@ public class SequenceDatabase {
 //        generateSequenceDatabase();
         sequenceMining();
     }
+
+    public static class Heatmap {
+        private Map<String, List<Integer>> hostData = new LinkedHashMap<>();
+        private final int hostWidth = 20;
+        private final int imageHeight = 500;
+        private final int maxValue = 30; // max possible value you expect (can be parameterized)
+
+
+        // Method to add data points
+        public void addPoint(String hostIp, int value) {
+            hostData.computeIfAbsent(hostIp, k -> new ArrayList<>()).add(value);
+        }
+
+        // Method to save the heatmap as an image
+        public void saveImage(String filename) throws IOException {
+            int imageWidth = hostData.size() * hostWidth;  // Total width of the image
+            BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = image.createGraphics();
+
+            // Set white background
+            g2d.setColor(Color.WHITE);
+            g2d.fillRect(0, 0, imageWidth, imageHeight);
+
+            // Draw axis (Y-axis and X-axis)
+            drawAxes(g2d);
+
+            // Draw bars for each host
+            int hostIndex = 0;
+            for (Map.Entry<String, List<Integer>> entry : hostData.entrySet()) {
+                int baseX = hostIndex * hostWidth;
+                int totalValue = entry.getValue().stream().mapToInt(Integer::intValue).sum();
+                int barHeight = scaleValue(totalValue);  // Scale the total value to fit in the height
+
+                // Draw bar for the host
+                g2d.setColor(getColor(totalValue)); // Use color based on the total value
+                g2d.fillRect(baseX, imageHeight - barHeight, hostWidth - 2, barHeight); // Draw the bar
+
+                hostIndex++;
+            }
+
+            g2d.dispose();
+            ImageIO.write(image, "png", new File(filename)); // Save image to file
+        }
+
+        // Method to scale the value for Y-axis (so the higher the value, the higher the bar is drawn)
+        private int scaleValue(int value) {
+            return (value * imageHeight) / maxValue;
+        }
+
+        // Method to get a color based on value
+        private Color getColor(int value) {
+            // Color gradient (Green for low, Red for high)
+            int red = Math.min(255, (value * 8));
+            int green = 255 - Math.min(255, (value * 8));
+            return new Color(red, green, 0);
+        }
+
+        // Method to draw axis (for y-axis and x-axis)
+        private void drawAxes(Graphics2D g2d) {
+            // Draw Y-axis values (for each scale of the y-axis)
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+
+            for (int i = 0; i <= maxValue; i += 5) {
+                int yPos = imageHeight - scaleValue(i);  // Calculate y position based on value
+                g2d.drawLine(0, yPos, 10, yPos);  // Draw tick line at that position
+                g2d.drawString(String.valueOf(i), 15, yPos);  // Draw value next to it
+            }
+
+            // Draw X-axis values (host IP labels)
+//            int hostIndex = 0;
+//            for (String host : hostData.keySet()) {
+//                int xPos = hostIndex * hostWidth + hostWidth / 2;  // Middle of the host's segment
+//                g2d.drawString(host, xPos - 10, imageHeight - 10);  // Label under each host's column
+//                hostIndex++;
+//            }
+        }
+    }
 }
 
 class SequenceMiningProcessor implements Callable<Void> {
@@ -156,7 +256,7 @@ class SequenceMiningProcessor implements Callable<Void> {
             try {
                 AlgoTKS algo = new AlgoTKS();
                 algo.setMinimumPatternLength(1);
-                algo.setMaximumPatternLength(20);
+                algo.setMaximumPatternLength(10);
                 // TODO: adjust
                 algo.setMinsup(Math.max(4, (int) (0.2 * lines)));
                 PriorityQueue<PatternTKS> patterns = algo.runAlgorithm(sequenceToMineFile.getAbsolutePath(),
@@ -171,6 +271,12 @@ class SequenceMiningProcessor implements Callable<Void> {
 //                            cnt++;
 //                            if (patterns.size() > k) break;
                     writer.write(pattern.getPrefix() + " #SUP: " + pattern.support + "\n");
+                    String host = sequenceToMineFile.getParentFile().getName();
+                    if (SequenceDatabase.legitList.contains(host)) {
+                        SequenceDatabase.legitHeatmap.addPoint(host, pattern.getPrefix().split(" -1 ").length);
+                    } else if (!SequenceDatabase.omitList.contains(host)) {
+                        SequenceDatabase.botHeatmap.addPoint(host, pattern.getPrefix().split(" -1 ").length);
+                    }
                     if (++cnt > 15) break;
                 }
                 writer.flush();
@@ -185,4 +291,6 @@ class SequenceMiningProcessor implements Callable<Void> {
         }
         return null;
     }
+
 }
+

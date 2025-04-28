@@ -48,7 +48,7 @@ public class P2PManagementFlowDetect {
     public static void frequentBehaviourMining() {
         BufferedReader br = null;
         BufferedWriter writer = null;
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ExecutorService executor = Executors.newFixedThreadPool(5);
         List<CompletableFuture<?>> futures = new ArrayList<>();
         MyMultiThread myMultiThread = new MyMultiThread(10 * 60 * 1000, 5);
 
@@ -436,16 +436,17 @@ class frequentBehaviourProcessor implements Callable<Void> {
             int minSupValue = Math.max((int)(0.2 * numberOfBehaviours), 10);
 
             AlgoTKS algo = new AlgoTKS();
-            algo.setMinimumPatternLength(1);
-            algo.setMaximumPatternLength(10);
-            algo.setMinsup((int)0.3 * numberOfBehaviours);
+            algo.setMinimumPatternLength(2);
+            algo.setMaximumPatternLength(7);
+//            algo.setMinsup((int)(0.2 * numberOfBehaviours));
             PriorityQueue<PatternTKS> behaviourPatterns = algo.runAlgorithm(eventSequenceFile.getAbsolutePath()
-                    , System.getProperty("user.dir") + "/OutputData/behaviourTKS.txt", 15);
-            algo = new AlgoTKS();
-            algo.setMinimumPatternLength(10);
-            algo.setMinsup(5);
-            behaviourPatterns.addAll(algo.runAlgorithm(eventSequenceFile.getAbsolutePath()
-                , eventSequenceFile.getParentFile().getAbsolutePath() + "/behaviourTKS.txt", 15));
+                    , System.getProperty("user.dir") + "/OutputData/behaviourTKS.txt", 20);
+//            algo = new AlgoTKS();
+//            algo.setMinimumPatternLength(5);
+//            algo.setMaximumPatternLength(15);
+//            algo.setMinsup();
+//            behaviourPatterns.addAll(algo.runAlgorithm(eventSequenceFile.getAbsolutePath()
+//                , eventSequenceFile.getParentFile().getAbsolutePath() + "/behaviourTKS.txt", 10));
 
 //                    System.out.println("Number of patterns: " + patterns.size());
             if (!behaviourPatterns.isEmpty()) System.out.println("Pattern of " + eventSequenceFile.getParentFile().getName() + " with their sup: ");
@@ -463,7 +464,7 @@ class frequentBehaviourProcessor implements Callable<Void> {
 //                        }
                 System.out.print(behaviourLength + "-" + behaviourSupport + " ");
 //                        System.out.println("Behaviour length: " + behaviourLength);
-                PatternStatisticVisualize.addPoint(eventSequenceFile.getParentFile().getName(),
+                PatternStatisticVisualize.addPoint(eventSequenceFile.getParentFile().getName() + eventSequenceFile.getName(),
                         behaviourLength, behaviourSupport * behaviourLength);
 
                 boolean predictValue = behaviourLength > P2PManagementFlowDetect.lengthThreshold || behaviourSupport * behaviourLength > strengthThreshold;
@@ -481,4 +482,6 @@ class frequentBehaviourProcessor implements Callable<Void> {
         }
         return null;
     }
+
+
 }

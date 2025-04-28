@@ -192,7 +192,7 @@ public class EventSequenceGenerate {
                     while (line != null && !line.isEmpty()) {
                         String[] parts = line.split(" ");
                         String dstAdd = parts[0], flow = parts[1];
-
+                        boolean isMatch = false;
                         for (String flowUnit : flow.split("\\.")) {
                             cnt = 1;
                             for (EventSequenceGenerate.Pattern pattern : eventSet) {
@@ -200,21 +200,22 @@ public class EventSequenceGenerate {
                                 Matcher m = p.matcher(flowUnit);
 
                                 if (matchBySlideWindow(pattern.pattern,flowUnit)) {
-//                                    if (evenSequenceMap.containsKey(dstAdd)) {
-//                                        evenSequenceMap.get(dstAdd).add(cnt);
-//                                    } else {
-//                                        ArrayList<Integer> list = new ArrayList<Integer>();
-//                                        list.add(cnt);
-//                                        evenSequenceMap.put(dstAdd, list);
-//                                    }
-                                    writer.write(cnt + " -1 ");
+                                    if (evenSequenceMap.containsKey(dstAdd)) {
+                                        evenSequenceMap.get(dstAdd).add(cnt);
+                                    } else {
+                                        ArrayList<Integer> list = new ArrayList<Integer>();
+                                        list.add(cnt);
+                                        evenSequenceMap.put(dstAdd, list);
+                                    }
+//                                    writer.write(cnt + " -1 ");
+                                    isMatch = true;
                                     break;
                                 }
                                 cnt++;
                             }
 
                         }
-                        writer.write("-2\n");
+//                        if (isMatch) writer.write("-2\n");
                         writer.flush();
                         line = br.readLine();
                     }
@@ -223,8 +224,8 @@ public class EventSequenceGenerate {
                     e.printStackTrace();
                 }
             }
-            writer.close();
-//            printFromEventSequenceMap(evenSequenceMap, writer);
+            printFromEventSequenceMap(evenSequenceMap, writer);
+//            writer.close();
         }
     }
 
@@ -257,7 +258,7 @@ public class EventSequenceGenerate {
                 for (int i = 0; i < entry.getValue().size(); i++) {
                     writer.write(entry.getValue().get(i) + " -1 ");
                 }
-                writer.write("-2\n");
+                if (!entry.getValue().isEmpty()) writer.write("-2\n");
             }
             writer.flush();
 //            writer.close();

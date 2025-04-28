@@ -50,14 +50,20 @@ public class P2PHostIdentify {
                 return;
             }
 //            srcAdd = srcAdd.substring(0, srcAdd.lastIndexOf("."));
-            dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
-            if (!(srcAdd.startsWith("10.") || srcAdd.startsWith("172.") || srcAdd.startsWith("192.") || srcAdd.startsWith("147."))
-                && (dstAdd.startsWith("10.") || dstAdd.startsWith("172.") || dstAdd.startsWith("192.") || dstAdd.startsWith("147."))) {
-                context.write(new Text(dstAdd), new Text("-1 " + time + " " + dstAdd + " " + flow));
-                return;
+//            dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
+            if (!(srcAdd.startsWith("10.") || srcAdd.startsWith("172.") || srcAdd.startsWith("192.168") || srcAdd.startsWith("147."))) {
+                if (dstAdd.startsWith("10.") || dstAdd.startsWith("172.") || dstAdd.startsWith("192.168") || dstAdd.startsWith("147."))
+                    context.write(new Text(dstAdd.substring(0, dstAdd.lastIndexOf("."))),
+                            new Text(dstAdd.substring(dstAdd.lastIndexOf(".") + 1)+ " " + time + " " + srcAdd.substring(0, srcAdd.lastIndexOf("."))+ ".-1" + " " + flow));
+                    return;
+            } else {
+                context.write(new Text(srcAdd.substring(0, srcAdd.lastIndexOf("."))),
+                        new Text(srcAdd.substring(srcAdd.lastIndexOf(".") + 1)+ " " + time + " " + dstAdd + " " + flow));
+                if (dstAdd.startsWith("10.") || dstAdd.startsWith("172.") || dstAdd.startsWith("192.168") || dstAdd.startsWith("147.")) {
+                    context.write(new Text(dstAdd.substring(0, dstAdd.lastIndexOf("."))),
+                            new Text(dstAdd.substring(dstAdd.lastIndexOf(".") + 1)+ " " + time + " " + srcAdd.substring(0, srcAdd.lastIndexOf("."))+ ".-1" + " " + flow));
+                }
             }
-            context.write(new Text(srcAdd.substring(0, srcAdd.lastIndexOf("."))),
-                    new Text(srcAdd.substring(srcAdd.lastIndexOf(".") + 1)+ " " + time + " " + dstAdd + " " + flow));
         }
     }
 
@@ -70,6 +76,7 @@ public class P2PHostIdentify {
                 throws IOException, InterruptedException {
 //            System.out.println("Key value: " + key);
             Set<String> dstSet = new HashSet<String>();
+//            HashMap<Integer, HashSet<String>> dstSet = new HashMap<Integer, HashSet<String>>(); //<prefix, port>>
 //            HashSet<Integer> removedPort = new HashSet<Integer>();
 
             HashMap<Integer, HashMap<String, ArrayList<String>>> flowMap = new HashMap<Integer, HashMap<String,ArrayList<String>>>(); //<prefix, flow>>
@@ -88,6 +95,7 @@ public class P2PHostIdentify {
             for (Text val : values) {
 
                 String[] parts = val.toString().split(" ")[2].split("\\.");
+                Integer srcPort = Integer.parseInt(val.toString().split(" ")[0]);
                 String prefix = parts[0] + "." + parts[1];
                 if (!dstSet.contains(prefix)) {
                     dstSet.add(prefix);
@@ -98,7 +106,6 @@ public class P2PHostIdentify {
             if (dstSet.size() < p2PHostDetectionThreshold) {
                 return;
             }
-//    }
 
             BufferedWriter allWriter = null;
             dir = new File(System.getProperty("user.dir") + "/OutputData/Sequences/" + srcAdd + "/");
@@ -109,12 +116,43 @@ public class P2PHostIdentify {
 
             dir.mkdir();
 
+//            {
+//                Collections.sort(cachedValues, new Comparator<Text>() {
+//                    @Override
+//                    public int compare(Text o1, Text o2) {
+//                        Long time1 = Math.round(Double.parseDouble(o1.toString().split(" ")[0]));
+//                        Long time2 = Math.round(Double.parseDouble(o2.toString().split(" ")[0]));
+//                        return time1.compareTo(time2);
+//                    }
+//                });
+//                HashMap<String, ArrayList<Long>> map = new HashMap<String, ArrayList<Long>>();
+//                for (Text val : cachedValues) {
+//                    String[] parts = val.toString().split(" ");
+//                    if (parts[3].length() < 4) continue;
+//                    Long endTime = (Long) Math.round(Double.parseDouble(parts[1]));
+//                    String dstAdd = parts[2].substring(0, parts[2].lastIndexOf("."));
+//                    if (!map.containsKey(dstAdd)) {
+//                        map.put(dstAdd, new ArrayList<Long>());
+//                        map.get(dstAdd).add(endTime);
+//                    } else if (endTime - map.get(dstAdd).get(0) < 1200) {
+//                        map.get(dstAdd).add(endTime - map.get(dstAdd).get(0));
+//                        map.get(dstAdd).set(0, endTime);
+//                    } else {
+//                        map.get(dstAdd).set(0, endTime);
+//                    }
+//                }
+//                System.out.println(map.size());
+//
+//                if (true) return;
+//            }
+
 
             for (Text val : cachedValues) {
                 String[] parts = val.toString().split(" ");
                 int srcPort = Integer.parseInt(parts[0]);
                 float endTime = Float.parseFloat(parts[1]);
                 String dstAdd = parts[2], flow = parts[3], sizes[] = flow.split(",");
+                if (!dstAdd.endsWith("-1")) dstAdd = dstAdd.substring(0, dstAdd.lastIndexOf("."));
 
                 if (sizes.length < NumberOfPacketThread) {
                     continue;

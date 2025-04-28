@@ -23,13 +23,13 @@ public class main {
             }
 
 //            P2PHostIdentify.run();
-//
-////            System.out.println("Start sequence mining");
+//////
+////////            System.out.println("Start sequence mining");
 //            SequenceDatabase.run();
-////
-//            EventSequenceGenerate.run();
 
-            P2PManagementFlowDetect.run();
+//                EventSequenceGenerate.run();
+
+                P2PManagementFlowDetect.run();
         } catch (Exception e) {
             e.printStackTrace();
         }
